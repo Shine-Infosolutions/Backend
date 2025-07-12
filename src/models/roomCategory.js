@@ -1,4 +1,5 @@
-import mongoose from "mongoose";
+const mongoose = require("mongoose");
+
 
 const roomCategorySchema = new mongoose.Schema(
   {
@@ -12,8 +13,12 @@ const roomCategorySchema = new mongoose.Schema(
       enum: ["Active", "Inactive"],
       default: "Active",
     },
+    max_rooms: {
+      type: Number,
+      default: 0,
+    },
   },
   { timestamps: true }
 );
 
-export const RoomCategory = mongoose.model("RoomCategory", roomCategorySchema);
+module.exports = mongoose.model("RoomCategory", roomCategorySchema);

@@ -1,3 +1,55 @@
+// ✅ BOOK Room (decrement available count in category)
+exports.bookRoom = async (req, res) => {
+  try {
+    const { category, count = 1, title, room_number, price, extra_bed, description } = req.body;
+    if (!category) {
+      return res.status(400).json({ success: false, message: "Category is required." });
+    }
+    const RoomCategory = require("../models/roomCategory");
+    const cat = await RoomCategory.findById(category);
+    if (!cat) {
+      return res.status(400).json({ success: false, message: "Invalid category." });
+    }
+    // Create new rooms with provided details and mark as booked
+    let createdRooms = [];
+    let errors = [];
+    const Room = require("../models/room");
+    const currentRoomCount = await Room.countDocuments({ category });
+    if (cat.max_rooms && currentRoomCount + Number(count) > cat.max_rooms) {
+      return res.status(400).json({ success: false, message: `Cannot book ${count} rooms. Only ${cat.max_rooms - currentRoomCount} rooms can be created for this category.` });
+    }
+    for (let i = 0; i < count; i++) {
+      try {
+        // Room number is always sequential for the category
+        const nextRoomNumber = currentRoomCount + i + 1;
+        const newRoom = new Room({
+          title: title ? `${title} ${nextRoomNumber}` : `Room ${nextRoomNumber}`,
+          category,
+          room_number: `${nextRoomNumber}`,
+          price: price || cat.price || 0,
+          extra_bed: extra_bed || false,
+          is_oos: true, // Mark as booked
+          status: true,
+          description: description || `Auto-created and booked room in ${cat.category}`,
+          photos: [],
+        });
+        await newRoom.save();
+        createdRooms.push(newRoom);
+      } catch (err) {
+        errors.push(err.message);
+      }
+    }
+    // Decrement max_rooms in category
+    if (cat.max_rooms > 0) {
+      cat.max_rooms = cat.max_rooms - createdRooms.length;
+      if (cat.max_rooms < 0) cat.max_rooms = 0;
+      await cat.save();
+    }
+    res.json({ success: true, message: `Created and booked ${createdRooms.length} room(s).`, rooms: createdRooms, rooms_left: cat.max_rooms, errors });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 const express = require("express");
 const Room = require("../models/room");
 
@@ -16,6 +68,17 @@ exports.createRoom = async (req, res) => {
     } = req.body;
 
     const photos = req.files?.map(file => file.path) || [];
+
+    // Enforce max_rooms limit
+    const RoomCategory = require("../models/roomCategory");
+    const cat = await RoomCategory.findById(category);
+    if (!cat) {
+      return res.status(400).json({ success: false, message: "Invalid category." });
+    }
+    const currentRoomCount = await Room.countDocuments({ category });
+    if (cat.max_rooms && currentRoomCount >= cat.max_rooms) {
+      return res.status(400).json({ success: false, message: `Maximum number of rooms (${cat.max_rooms}) for this category reached.` });
+    }
 
     const newRoom = new Room({
       title,
@@ -107,7 +170,14 @@ exports.updateRoom = async (req, res) => {
       updates.photos = req.files.map(file => file.path);
     }
 
-    const updatedRoom = await Room.findByIdAndUpdate(req.params.id, updates, { new: true });
+    // If unbooking (is_oos: false), increment max_rooms in category
+    let updatedRoom = await Room.findByIdAndUpdate(req.params.id, updates, { new: true });
+    if (updates.is_oos === false || updates.is_oos === "false") {
+      const RoomCategory = require("../models/roomCategory");
+      if (updatedRoom && updatedRoom.category) {
+        await RoomCategory.findByIdAndUpdate(updatedRoom.category, { $inc: { max_rooms: 1 } });
+      }
+    }
     res.json({ success: true, room: updatedRoom });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -117,6 +187,16 @@ exports.updateRoom = async (req, res) => {
 // ✅ DELETE Room
 exports.deleteRoom = async (req, res) => {
   try {
+    // Find the room to get its category and booking status
+    const room = await Room.findById(req.params.id);
+    if (!room) {
+      return res.status(404).json({ success: false, message: "Room not found" });
+    }
+    // If the room was booked, increment max_rooms in category
+    if (room.is_oos) {
+      const RoomCategory = require("../models/roomCategory");
+      await RoomCategory.findByIdAndUpdate(room.category, { $inc: { max_rooms: 1 } });
+    }
     await Room.findByIdAndDelete(req.params.id);
     res.json({ success: true, message: "Room deleted" });
   } catch (error) {

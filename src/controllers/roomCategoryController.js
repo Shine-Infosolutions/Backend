@@ -1,11 +1,9 @@
-import { RoomCategory } from "../models/roomCategory.js";
+const RoomCategory = require("../models/roomCategory");
 
-// ✅ Create Room Category
-export const createRoomCategory = async (req, res) => {
+exports.createRoomCategory = async (req, res) => {
   try {
-    const { category, status } = req.body;
-
-    const newCategory = new RoomCategory({ category, status });
+    const { category, status, max_rooms } = req.body;
+    const newCategory = new RoomCategory({ category, status, max_rooms });
     await newCategory.save();
 
     res.status(201).json({ success: true, roomCategory: newCategory });
@@ -15,7 +13,7 @@ export const createRoomCategory = async (req, res) => {
 };
 
 // ✅ Get All Categories with Search and Pagination
-export const getAllRoomCategories = async (req, res) => {
+exports.getAllRoomCategories = async (req, res) => {
   try {
     const { page = 1, limit = 10, search = "" } = req.query;
 
@@ -47,30 +45,28 @@ export const getAllRoomCategories = async (req, res) => {
 
 
 // ✅ Update Category
-export const updateRoomCategory = async (req, res) => {
-    try {
-      const { id } = req.params;
-  
-      const updateData = {};
-      if (req.body.category !== undefined)
-        updateData.category = req.body.category.trim();
-  
-      if (req.body.status !== undefined)
-        updateData.status = req.body.status.trim();
-  
-      const updated = await RoomCategory.findByIdAndUpdate(id, updateData, {
-        new: true,
-      });
-  
-      res.json({ success: true, roomCategory: updated });
-    } catch (error) {
-      console.error("Update category error:", error);
-      res.status(500).json({ success: false, message: error.message });
-    }
-  };  
+exports.updateRoomCategory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = {};
+    if (req.body.category !== undefined)
+      updateData.category = req.body.category.trim();
+    if (req.body.status !== undefined)
+      updateData.status = req.body.status.trim();
+    if (req.body.max_rooms !== undefined)
+      updateData.max_rooms = req.body.max_rooms;
+    const updated = await RoomCategory.findByIdAndUpdate(id, updateData, {
+      new: true,
+    });
+    res.json({ success: true, roomCategory: updated });
+  } catch (error) {
+    console.error("Update category error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
 // ✅ Delete Category
-export const deleteRoomCategory = async (req, res) => {
+exports.deleteRoomCategory = async (req, res) => {
   try {
     await RoomCategory.findByIdAndDelete(req.params.id);
     res.status(200).json({ success: true, message: "Category deleted" });

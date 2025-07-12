@@ -5,6 +5,7 @@ require('dotenv').config();
 
 const authRoutes = require('./src/routes/auth');
 const roomRoutes = require('./src/routes/roomRoutes'); // Import room routes
+const roomCategoryRoutes = require('./src/routes/roomCategoryRoutes'); // Import room category routes
 
 const app = express();
 app.use(cors());
@@ -16,6 +17,7 @@ mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/login', {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/rooms', roomRoutes); // Use room routes
+app.use('/api/room-categories', roomCategoryRoutes); // Use room category routes
 
 app.get('/', (req, res) => {
   res.send('API is running');
