@@ -1,9 +1,9 @@
-import mongoose from "mongoose";
+const mongoose = require("mongoose");
 
 const roomSchema = new mongoose.Schema(
   {
     title: { type: String },
-    category: { type: String, enum: ["deluxe", "standard", "normal"], required: true },
+    category: { type: mongoose.Schema.Types.ObjectId, ref: "RoomCategory", required: true },
     room_number: { type: String, required: true, unique: true },
     price: { type: Number, required: true },
     extra_bed: { type: Boolean, default: false },
@@ -15,4 +15,4 @@ const roomSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export const Room = mongoose.model("Room", roomSchema);
+module.exports = mongoose.model("Room", roomSchema);

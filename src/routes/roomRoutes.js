@@ -1,11 +1,6 @@
 const express = require("express");
-import {
-  createRoom,
-  getAllRooms,
-  getRoomById,
-  updateRoom,
-  deleteRoom,
-} from "../controllers/roomController.js";
+const roomController = require("../controllers/roomController.js");
+const { createRoom, getAllRooms, getRoomById, updateRoom, deleteRoom } = roomController;
 
 const router = express.Router();
 
@@ -17,4 +12,4 @@ router.put("/update/:id", updateRoom);
 
 router.delete("/delete/:id", deleteRoom);
 
-export default router;
+module.exports = router;

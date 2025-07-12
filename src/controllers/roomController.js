@@ -1,7 +1,8 @@
-import { Room } from "../models/room.js";
+const express = require("express");
+const Room = require("../models/room");
 
 // ✅ CREATE Room
-export const createRoom = async (req, res) => {
+exports.createRoom = async (req, res) => {
   try {
     const {
       title,
@@ -37,7 +38,7 @@ export const createRoom = async (req, res) => {
 };
 
 // ✅ GET ALL Rooms — with search, filters, pagination
-export const getAllRooms = async (req, res) => {
+exports.getAllRooms = async (req, res) => {
   try {
     const {
       page = 1,
@@ -88,7 +89,7 @@ export const getAllRooms = async (req, res) => {
 };
 
 // ✅ GET Room By ID
-export const getRoomById = async (req, res) => {
+exports.getRoomById = async (req, res) => {
   try {
     const room = await Room.findById(req.params.id).populate("category");
     if (!room) return res.status(404).json({ success: false, message: "Room not found" });
@@ -99,7 +100,7 @@ export const getRoomById = async (req, res) => {
 };
 
 // ✅ UPDATE Room
-export const updateRoom = async (req, res) => {
+exports.updateRoom = async (req, res) => {
   try {
     const updates = req.body;
     if (req.files?.length > 0) {
@@ -114,7 +115,7 @@ export const updateRoom = async (req, res) => {
 };
 
 // ✅ DELETE Room
-export const deleteRoom = async (req, res) => {
+exports.deleteRoom = async (req, res) => {
   try {
     await Room.findByIdAndDelete(req.params.id);
     res.json({ success: true, message: "Room deleted" });
