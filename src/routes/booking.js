@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const bookingController = require('../controllers/bookingController');
+const authMiddleware = require('../middleware/authMiddleware');
 
 // Book a room or multiple rooms
 router.post('/book', bookingController.bookRoom);
@@ -11,7 +12,10 @@ router.get('/all', bookingController.getBookings);
 // Get bookings by category
 router.get('/category/:categoryId', bookingController.getBookingsByCategory);
 
-// Unbook (delete) a booking
+// Unbook (soft delete)
 router.delete('/delete/:bookingId', bookingController.deleteBooking);
 
-module.exports = router; 
+// Permanently delete booking (admin only)
+router.delete('/permanent-delete/:bookingId', authMiddleware(['admin']), bookingController.permanentlyDeleteBooking);
+
+module.exports = router;
