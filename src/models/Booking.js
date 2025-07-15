@@ -5,11 +5,11 @@ const bookingSchema = new mongoose.Schema({
   category: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Category',
-    required: true
+    //required: true
   },
   roomNumber: {
     type: Number,
-    required: true
+    //required: true
   },
   numberOfRooms: {
     type: Number,
@@ -21,7 +21,7 @@ const bookingSchema = new mongoose.Schema({
   },
   referenceNumber: {
     type: String,
-    required: true,
+    //required: true,
     unique: true
   },  
   createdAt: {
@@ -66,11 +66,11 @@ const bookingSchema = new mongoose.Schema({
   bookingInfo: {
     checkIn: {
       type: Date,
-      required: true
+      //required: true
     },
     checkOut: {
       type: Date,
-      required: true
+      //required: true
     },
     arrivalFrom: String,
     bookingType: {
