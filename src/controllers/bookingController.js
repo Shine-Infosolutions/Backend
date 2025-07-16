@@ -1,109 +1,141 @@
 const Booking = require('../models/Booking');
 const Category = require('../models/Category');
 
-// Book a room for a category
+// Book a room for a category (single or multiple)
 exports.bookRoom = async (req, res) => {
   try {
-    // Handle multiple bookings if 'bookings' array is present
+    const handleBooking = async (categoryId, count, extraDetails = {}) => {
+      const category = await Category.findById(categoryId);
+      if (!category) throw new Error(`Category not found: ${categoryId}`);
+
+      const currentActiveCount = await Booking.countDocuments({ category: categoryId, isActive: true });
+      if (currentActiveCount + count > category.maxRooms) {
+        throw new Error(`Not enough rooms available in ${category.name}`);
+      }
+
+      const reusableRooms = await Booking.find({ category: categoryId, isActive: false })
+        .sort({ roomNumber: 1 })
+        .limit(count);
+
+      const bookedRoomNumbers = [];
+
+      // Reactivate old room numbers
+      for (let i = 0; i < reusableRooms.length; i++) {
+        const { roomNumber } = reusableRooms[i];
+        const referenceNumber = `REF-${Math.floor(100000 + Math.random() * 900000)}`;
+
+        const booking = new Booking({
+          category: categoryId,
+          roomNumber,
+          isActive: true,
+          numberOfRooms: 1,
+          referenceNumber,
+          guestDetails: extraDetails.guestDetails,
+          contactDetails: extraDetails.contactDetails,
+          identityDetails: extraDetails.identityDetails,
+          bookingInfo: extraDetails.bookingInfo,
+          paymentDetails: extraDetails.paymentDetails
+        });
+
+        await booking.save();
+        bookedRoomNumbers.push(roomNumber);
+      }
+
+      const newRoomsToCreate = count - bookedRoomNumbers.length;
+
+      let startRoomNumber = 1;
+      const categoryName = category.name.toLowerCase();
+      if (categoryName === 'deluxe') startRoomNumber = 100;
+      else if (categoryName === 'suite') startRoomNumber = 200;
+      else if (categoryName === 'standard') startRoomNumber = 300;
+
+      const last = await Booking.find({ category: categoryId }).sort({ roomNumber: -1 }).limit(1);
+      let nextRoomNumber = last.length ? last[0].roomNumber + 1 : startRoomNumber;
+
+      for (let i = 0; i < newRoomsToCreate; i++) {
+        const referenceNumber = `REF-${Math.floor(100000 + Math.random() * 900000)}`;
+
+        const booking = new Booking({
+          category: categoryId,
+          roomNumber: nextRoomNumber,
+          isActive: true,
+          numberOfRooms: 1,
+          referenceNumber,
+          guestDetails: extraDetails.guestDetails,
+          contactDetails: extraDetails.contactDetails,
+          identityDetails: extraDetails.identityDetails,
+          bookingInfo: extraDetails.bookingInfo,
+          paymentDetails: extraDetails.paymentDetails
+        });
+
+        await booking.save();
+        bookedRoomNumbers.push(nextRoomNumber++);
+      }
+
+      // Return all booked room records
+      const bookings = await Booking.find({
+        roomNumber: { $in: bookedRoomNumbers },
+        category: categoryId
+      });
+
+      return bookings;
+    };
+
+    // 🔹 Handle multiple bookings
     if (Array.isArray(req.body.bookings)) {
-      const { bookings } = req.body;
-      if (bookings.length === 0) {
-        return res.status(400).json({ error: 'No bookings requested' });
-      }
       const results = [];
-      for (const bookingRequest of bookings) {
-        const { categoryId, count } = bookingRequest;
-        const category = await Category.findById(categoryId);
-        if (!category) {
-          return res.status(404).json({ error: `Category not found: ${categoryId}` });
-        }
-        const currentBookings = await Booking.countDocuments({ category: categoryId });
-        if (currentBookings + count > category.maxRooms) {
-          return res.status(400).json({ error: `Not enough rooms available in ${category.name}` });
-        }
-        // Determine starting room number
-        let startRoomNumber = 1;
-        if (category.name.toLowerCase() === 'deluxe') {
-          startRoomNumber = 100;
-        } else if (category.name.toLowerCase() === 'suite') {
-          startRoomNumber = 200;
-        }
-        // Find the highest room number for this category
-        const lastBooking = await Booking.find({ category: categoryId })
-          .sort({ roomNumber: -1 })
-          .limit(1);
-        let nextRoomNumber = startRoomNumber;
-        if (lastBooking.length > 0) {
-          nextRoomNumber = lastBooking[0].roomNumber + 1;
-        }
-        const bookedRoomNumbers = [];
-        for (let i = 0; i < count; i++) {
-          const booking = new Booking({ category: categoryId, roomNumber: nextRoomNumber });
-          await booking.save();
-          bookedRoomNumbers.push(nextRoomNumber);
-          nextRoomNumber++;
-        }
-        // Decrement maxRooms in Category
-        category.maxRooms -= count;
-        await category.save();
-        results.push({ category: category.name, roomNumbers: bookedRoomNumbers });
+
+      for (const item of req.body.bookings) {
+        const { categoryId, count, ...extraDetails } = item;
+        const bookings = await handleBooking(categoryId, count, extraDetails);
+        results.push(...bookings);
       }
+
       return res.status(201).json({ success: true, booked: results });
     }
 
-    // Handle single booking (with optional count)
-    const { categoryId, count } = req.body;
-    if (!categoryId) {
-      return res.status(400).json({ error: 'categoryId is required' });
-    }
-    const category = await Category.findById(categoryId);
-    if (!category) return res.status(404).json({ error: 'Category not found' });
+    // 🔹 Handle single booking
+    const {
+      categoryId,
+      count,
+      guestDetails,
+      contactDetails,
+      identityDetails,
+      bookingInfo,
+      paymentDetails
+    } = req.body;
+
+    if (!categoryId) return res.status(400).json({ error: 'categoryId is required' });
+
     const numRooms = count && Number.isInteger(count) && count > 0 ? count : 1;
-    const currentBookings = await Booking.countDocuments({ category: categoryId });
-    if (currentBookings + numRooms > category.maxRooms) {
-      return res.status(400).json({ error: 'Not enough rooms available for this category' });
-    }
-    // Assign room numbers
-    let startRoomNumber = 1;
-    if (category.name.toLowerCase() === 'deluxe') {
-      startRoomNumber = 100;
-    } else if (category.name.toLowerCase() === 'suite') {
-      startRoomNumber = 200;
-    }
-    const lastBooking = await Booking.find({ category: categoryId })
-      .sort({ roomNumber: -1 })
-      .limit(1);
-    let nextRoomNumber = startRoomNumber;
-    if (lastBooking.length > 0) {
-      nextRoomNumber = lastBooking[0].roomNumber + 1;
-    }
-    const bookedRoomNumbers = [];
-    for (let i = 0; i < numRooms; i++) {
-      const booking = new Booking({ category: categoryId, roomNumber: nextRoomNumber });
-      await booking.save();
-      bookedRoomNumbers.push(nextRoomNumber);
-      nextRoomNumber++;
-    }
-    // Decrement maxRooms in Category
-    category.maxRooms -= numRooms;
-    await category.save();
-    return res.status(201).json({ success: true, category: category.name, roomNumbers: bookedRoomNumbers });
+
+    const bookings = await handleBooking(categoryId, numRooms, {
+      guestDetails,
+      contactDetails,
+      identityDetails,
+      bookingInfo,
+      paymentDetails
+    });
+
+    return res.status(201).json({ success: true, booked: bookings });
+
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
 };
 
-// Get all bookings
+// 🔹 Get all bookings
 exports.getBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find().populate('category');
+    const filter = req.query.all === 'true' ? {} : { isActive: true };
+    const bookings = await Booking.find(filter).populate('category');
     res.json(bookings);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-// Get bookings by category
+// 🔹 Get bookings by category
 exports.getBookingsByCategory = async (req, res) => {
   try {
     const { categoryId } = req.params;
@@ -114,74 +146,35 @@ exports.getBookingsByCategory = async (req, res) => {
   }
 };
 
-// Book multiple rooms for one or more categories
-exports.bookManyRooms = async (req, res) => {
-  try {
-    const { bookings } = req.body; // [{ categoryId, count }]
-    if (!Array.isArray(bookings) || bookings.length === 0) {
-      return res.status(400).json({ error: 'No bookings requested' });
-    }
-    const results = [];
-    for (const bookingRequest of bookings) {
-      const { categoryId, count } = bookingRequest;
-      const category = await Category.findById(categoryId);
-      if (!category) {
-        return res.status(404).json({ error: `Category not found: ${categoryId}` });
-      }
-      const currentBookings = await Booking.countDocuments({ category: categoryId });
-      if (currentBookings + count > category.maxRooms) {
-        return res.status(400).json({ error: `Not enough rooms available in ${category.name}` });
-      }
-      // Determine starting room number
-      let startRoomNumber = 1;
-      if (category.name.toLowerCase() === 'deluxe') {
-        startRoomNumber = 100;
-      } else if (category.name.toLowerCase() === 'suite') {
-        startRoomNumber = 200;
-      } else if (category.name.toLowerCase() === 'standard') {
-        startRoomNumber = 300;
-    }
-
-      // Find the highest room number for this category
-      const lastBooking = await Booking.find({ category: categoryId })
-        .sort({ roomNumber: -1 })
-        .limit(1);
-      let nextRoomNumber = startRoomNumber;
-      if (lastBooking.length > 0) {
-        nextRoomNumber = lastBooking[0].roomNumber + 1;
-      }
-      const bookedRoomNumbers = [];
-      for (let i = 0; i < count; i++) {
-        const booking = new Booking({ category: categoryId, roomNumber: nextRoomNumber });
-        await booking.save();
-        bookedRoomNumbers.push(nextRoomNumber);
-        nextRoomNumber++;
-      }
-      // Decrement maxRooms in Category
-      category.maxRooms -= count;
-      await category.save();
-      results.push({ category: category.name, roomNumbers: bookedRoomNumbers });
-    }
-    res.status(201).json({ success: true, booked: results });
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-};
-
-// Delete (unbook) a booking by ID
+// 🔹 Unbook (soft delete)
 exports.deleteBooking = async (req, res) => {
   try {
     const { bookingId } = req.params;
     const booking = await Booking.findById(bookingId);
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
-    const category = await Category.findById(booking.category);
-    if (category) {
-      category.maxRooms += 1;
-      await category.save();
+
+    if (!booking.isActive) {
+      return res.status(400).json({ error: 'Booking already inactive' });
     }
-    await booking.deleteOne();
-    res.json({ success: true, message: 'Booking deleted (room unbooked)' });
+
+    booking.isActive = false;
+    await booking.save();
+
+    res.json({ success: true, message: 'Booking unbooked (marked inactive)' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
-}; 
+};
+
+// 🔹 PERMANENT DELETE
+exports.permanentlyDeleteBooking = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const deleted = await Booking.findByIdAndDelete(bookingId);
+    if (!deleted) return res.status(404).json({ error: 'Booking not found' });
+
+    res.json({ success: true, message: 'Booking permanently deleted' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
