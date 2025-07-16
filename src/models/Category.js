@@ -1,15 +1,9 @@
 const mongoose = require('mongoose');
 
-const categorySchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true,
-    unique: true
-  },
-  maxRooms: {
-    type: Number,
-    required: true
-  }
+const CategorySchema = new mongoose.Schema({
+  name: { type: String, required: true, unique: true },
+  description: { type: String },
+  status: { type: String, enum: ['active', 'inactive'], default: 'active' }
 });
 
-module.exports = mongoose.model('Category', categorySchema); 
+module.exports = mongoose.model('Category', CategorySchema);

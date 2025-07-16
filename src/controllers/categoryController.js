@@ -3,8 +3,8 @@ const Category = require('../models/Category');
 // Create a new category
 exports.createCategory = async (req, res) => {
   try {
-    const { name, maxRooms } = req.body;
-    const category = new Category({ name, maxRooms });
+    const { name, description, status } = req.body;
+    const category = new Category({ name, description, status });
     await category.save();
     res.status(201).json(category);
   } catch (error) {
@@ -36,10 +36,10 @@ exports.getCategoryById = async (req, res) => {
 // Update a category
 exports.updateCategory = async (req, res) => {
   try {
-    const { name, maxRooms } = req.body;
+    const { name, description, status } = req.body;
     const category = await Category.findByIdAndUpdate(
       req.params.id,
-      { name, maxRooms },
+      { name, description, status },
       { new: true, runValidators: true }
     );
     if (!category) return res.status(404).json({ error: 'Category not found' });
@@ -58,4 +58,4 @@ exports.deleteCategory = async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
-}; 
+};
