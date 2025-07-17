@@ -4,29 +4,25 @@ const Category = require('../models/Category');
 // Book a room for a category (single or multiple)
 exports.bookRoom = async (req, res) => {
   try {
+    const Room = require("../models/Room");
     const handleBooking = async (categoryId, count, extraDetails = {}) => {
       const category = await Category.findById(categoryId);
       if (!category) throw new Error(`Category not found: ${categoryId}`);
 
-      const currentActiveCount = await Booking.countDocuments({ category: categoryId, isActive: true });
-      if (currentActiveCount + count > category.maxRooms) {
-        throw new Error(`Not enough rooms available in ${category.name}`);
+      // Find available rooms in this category
+      const Room = require("../models/Room");
+      const availableRooms = await Room.find({ category: categoryId, status: 'available' }).limit(count);
+      if (availableRooms.length < count) {
+        throw new Error(`Not enough available rooms in ${category.name}`);
       }
-
-      const reusableRooms = await Booking.find({ category: categoryId, isActive: false })
-        .sort({ roomNumber: 1 })
-        .limit(count);
 
       const bookedRoomNumbers = [];
-
-      // Reactivate old room numbers
-      for (let i = 0; i < reusableRooms.length; i++) {
-        const { roomNumber } = reusableRooms[i];
+      for (let i = 0; i < availableRooms.length; i++) {
+        const room = availableRooms[i];
         const referenceNumber = `REF-${Math.floor(100000 + Math.random() * 900000)}`;
-
         const booking = new Booking({
           category: categoryId,
-          roomNumber,
+          roomNumber: room.room_number,
           isActive: true,
           numberOfRooms: 1,
           referenceNumber,
@@ -36,40 +32,11 @@ exports.bookRoom = async (req, res) => {
           bookingInfo: extraDetails.bookingInfo,
           paymentDetails: extraDetails.paymentDetails
         });
-
         await booking.save();
-        bookedRoomNumbers.push(roomNumber);
-      }
-
-      const newRoomsToCreate = count - bookedRoomNumbers.length;
-
-      let startRoomNumber = 1;
-      const categoryName = category.name.toLowerCase();
-      if (categoryName === 'deluxe') startRoomNumber = 100;
-      else if (categoryName === 'suite') startRoomNumber = 200;
-      else if (categoryName === 'standard') startRoomNumber = 300;
-
-      const last = await Booking.find({ category: categoryId }).sort({ roomNumber: -1 }).limit(1);
-      let nextRoomNumber = last.length ? last[0].roomNumber + 1 : startRoomNumber;
-
-      for (let i = 0; i < newRoomsToCreate; i++) {
-        const referenceNumber = `REF-${Math.floor(100000 + Math.random() * 900000)}`;
-
-        const booking = new Booking({
-          category: categoryId,
-          roomNumber: nextRoomNumber,
-          isActive: true,
-          numberOfRooms: 1,
-          referenceNumber,
-          guestDetails: extraDetails.guestDetails,
-          contactDetails: extraDetails.contactDetails,
-          identityDetails: extraDetails.identityDetails,
-          bookingInfo: extraDetails.bookingInfo,
-          paymentDetails: extraDetails.paymentDetails
-        });
-
-        await booking.save();
-        bookedRoomNumbers.push(nextRoomNumber++);
+        // Set Room.status to 'booked'
+        room.status = 'booked';
+        await room.save();
+        bookedRoomNumbers.push(room.room_number);
       }
 
       // Return all booked room records
@@ -77,7 +44,6 @@ exports.bookRoom = async (req, res) => {
         roomNumber: { $in: bookedRoomNumbers },
         category: categoryId
       });
-
       return bookings;
     };
 
@@ -159,6 +125,13 @@ exports.deleteBooking = async (req, res) => {
 
     booking.isActive = false;
     await booking.save();
+
+    // Set Room.status to 'available' when unbooking
+    const Room = require("../models/Room");
+    await Room.findOneAndUpdate(
+      { category: booking.category, room_number: String(booking.roomNumber) },
+      { status: 'available' }
+    );
 
     res.json({ success: true, message: 'Booking unbooked (marked inactive)' });
   } catch (error) {
