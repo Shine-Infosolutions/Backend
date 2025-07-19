@@ -23,23 +23,11 @@ const bookingSchema = new mongoose.Schema({
     type: String,
     //required: true,
     unique: true
-  },  
+  },
   createdAt: {
     type: Date,
     default: Date.now
   },
-
-  // 🔹 Guest Details
-  guestDetails: {
-    name: String,
-    age: Number,
-    gender: String,
-    isVIP: { type: Boolean, default: false },
-    anniversary: Date,
-    nationality: String,
-    guestImage: String // Cloudinary URL or local path
-  },
-
   // 🔹 Contact Info
   contactDetails: {
     phone: String,
@@ -82,6 +70,23 @@ const bookingSchema = new mongoose.Schema({
     adults: Number,
     children: Number
   },
+  
+  // 🔹 Extension History
+  extensionHistory: [
+    {
+      originalCheckIn: { type: Date },
+      originalCheckOut: { type: Date },
+      extendedCheckOut: { type: Date },
+      extendedOn: { type: Date, default: Date.now },
+      reason: String,
+      additionalAmount: Number,
+      paymentMode: {
+        type: String,
+        enum: ['Cash', 'Card', 'UPI', 'Bank Transfer', 'Other']
+      },
+      approvedBy: String
+    }
+  ],
 
   // 🔹 Payment Info
   paymentDetails: {

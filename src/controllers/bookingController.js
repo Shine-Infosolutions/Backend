@@ -151,3 +151,121 @@ exports.permanentlyDeleteBooking = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// 🔹 Update booking
+exports.updateBooking = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const updates = req.body;
+    
+    // Fields that cannot be updated directly
+    const restrictedFields = ['isActive', 'referenceNumber', 'createdAt', '_id'];
+    restrictedFields.forEach(field => delete updates[field]);
+    
+    const booking = await Booking.findById(bookingId);
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+    
+    // Update allowed fields safely
+    if (updates.guestDetails) {
+      if (!booking.guestDetails) booking.guestDetails = {};
+      Object.assign(booking.guestDetails, updates.guestDetails);
+    }
+    if (updates.contactDetails) {
+      if (!booking.contactDetails) booking.contactDetails = {};
+      Object.assign(booking.contactDetails, updates.contactDetails);
+    }
+    if (updates.identityDetails) {
+      if (!booking.identityDetails) booking.identityDetails = {};
+      Object.assign(booking.identityDetails, updates.identityDetails);
+    }
+    if (updates.bookingInfo) {
+      if (!booking.bookingInfo) booking.bookingInfo = {};
+      Object.assign(booking.bookingInfo, updates.bookingInfo);
+    }
+    if (updates.paymentDetails) {
+      if (!booking.paymentDetails) booking.paymentDetails = {};
+      Object.assign(booking.paymentDetails, updates.paymentDetails);
+    }
+    // Handle direct fields
+    if (updates.roomNumber) booking.roomNumber = updates.roomNumber;
+    if (updates.numberOfRooms) booking.numberOfRooms = updates.numberOfRooms;
+
+    // Handle extension logic if extendedCheckOut is present
+    if (updates.extendedCheckOut) {
+      const originalCheckIn = booking.bookingInfo.checkIn;
+      const originalCheckOut = booking.bookingInfo.checkOut;
+      booking.extensionHistory.push({
+        originalCheckIn,
+        originalCheckOut,
+        extendedCheckOut: new Date(updates.extendedCheckOut),
+        reason: updates.reason,
+        additionalAmount: updates.additionalAmount,
+        paymentMode: updates.paymentMode,
+        approvedBy: updates.approvedBy
+      });
+      booking.bookingInfo.checkOut = new Date(updates.extendedCheckOut);
+      if (updates.additionalAmount) {
+        booking.paymentDetails.totalAmount = (booking.paymentDetails.totalAmount || 0) + updates.additionalAmount;
+      }
+    }
+
+    await booking.save();
+    
+    res.json({
+      success: true,
+      message: 'Booking updated successfully',
+      booking
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// 🔹 Extend booking stay
+exports.extendBooking = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { extendedCheckOut, reason, additionalAmount, paymentMode, approvedBy } = req.body;
+    
+    const booking = await Booking.findById(bookingId);
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+    
+    if (!booking.isActive) {
+      return res.status(400).json({ error: 'Cannot extend inactive booking' });
+    }
+    
+    // Save original check-in and checkout date
+    const originalCheckIn = booking.bookingInfo.checkIn;
+    const originalCheckOut = booking.bookingInfo.checkOut;
+
+    // Add to extension history
+    booking.extensionHistory.push({
+      originalCheckIn,
+      originalCheckOut,
+      extendedCheckOut: new Date(extendedCheckOut),
+      reason,
+      additionalAmount,
+      paymentMode,
+      approvedBy
+    });
+    
+    // Update checkout date
+    booking.bookingInfo.checkOut = new Date(extendedCheckOut);
+    
+    // Update payment if provided
+    if (additionalAmount) {
+      booking.paymentDetails.totalAmount = 
+        (booking.paymentDetails.totalAmount || 0) + additionalAmount;
+    }
+    
+    await booking.save();
+    
+    res.json({ 
+      success: true, 
+      message: 'Booking extended successfully',
+      booking
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
