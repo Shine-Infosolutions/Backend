@@ -1,6 +1,6 @@
-const Booking = require('../models/Booking');
-const Category = require('../models/Category');
-const Room = require('../models/Room');
+const Booking = require('../models/Booking.js');
+const Category = require('../models/Category.js');
+const Room = require('../models/Room.js');
 
 // Book a room for a category (single or multiple)
 exports.bookRoom = async (req, res) => {
