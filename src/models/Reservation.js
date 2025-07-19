@@ -1,3 +1,5 @@
+const mongoose = require('mongoose');
+
 const reservationSchema = new mongoose.Schema(
     {
       grcNo: { type: String, unique: true, required: true }, // Guest Registration Card Number
@@ -95,3 +97,4 @@ const reservationSchema = new mongoose.Schema(
     { timestamps: true }
   );
   
+module.exports = mongoose.model('Reservation', reservationSchema);
