@@ -115,9 +115,7 @@ exports.getRoomsByCategory = async (req, res) => {
   try {
     const { categoryId } = req.params;
 
-    const rooms = await Room.find({ category: categoryId }).populate(
-      "category"
-    );
+    const rooms = await Room.find({ category: categoryId }).populate("category");
     const activeBookings = await Booking.find({
       category: categoryId,
       isActive: true,
@@ -140,6 +138,45 @@ exports.getRoomsByCategory = async (req, res) => {
     }));
 
     res.json({ success: true, rooms: roomsWithStatus });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Get all available rooms
+exports.getAvailableRooms = async (req, res) => {
+  try {
+    const rooms = await Room.find({ status: 'available' }).populate('category');
+    
+    // Group by category for easier frontend display
+    const groupedByCategory = {};
+    
+    rooms.forEach(room => {
+      const categoryId = room.category._id.toString();
+      const categoryName = room.category.name;
+      
+      if (!groupedByCategory[categoryId]) {
+        groupedByCategory[categoryId] = {
+          categoryId,
+          categoryName,
+          rooms: []
+        };
+      }
+      
+      groupedByCategory[categoryId].rooms.push({
+        _id: room._id,
+        title: room.title,
+        room_number: room.room_number,
+        price: room.price,
+        description: room.description
+      });
+    });
+    
+    res.json({
+      success: true,
+      availableRooms: Object.values(groupedByCategory),
+      totalCount: rooms.length
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
