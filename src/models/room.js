@@ -40,4 +40,12 @@ const RoomSchema = new mongoose.Schema({
   }]
 }, { timestamps: true });
 
-module.exports = mongoose.models.Room || mongoose.model('Room', RoomSchema);
+// Use a more reliable way to export the model
+let Room;
+try {
+  Room = mongoose.model('Room');
+} catch (error) {
+  Room = mongoose.model('Room', RoomSchema);
+}
+
+module.exports = mongoose.model('Room', RoomSchema);

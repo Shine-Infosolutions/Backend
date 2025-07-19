@@ -67,7 +67,17 @@ exports.createRoom = async (req, res) => {
 exports.getRooms = async (req, res) => {
   try {
     const rooms = await Room.find().populate("category");
-    res.json(rooms);
+    
+    // Map rooms to ensure safe access to category properties
+    const safeRooms = rooms.map(room => {
+      const roomObj = room.toObject();
+      if (!roomObj.category) {
+        roomObj.category = { name: 'Unknown' };
+      }
+      return roomObj;
+    });
+    
+    res.json(safeRooms);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -78,7 +88,14 @@ exports.getRoomById = async (req, res) => {
   try {
     const room = await Room.findById(req.params.id).populate("category");
     if (!room) return res.status(404).json({ error: "Room not found" });
-    res.json(room);
+    
+    // Ensure safe access to category properties
+    const safeRoom = room.toObject();
+    if (!safeRoom.category) {
+      safeRoom.category = { name: 'Unknown' };
+    }
+    
+    res.json(safeRoom);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -124,18 +141,23 @@ exports.getRoomsByCategory = async (req, res) => {
       activeBookings.map((booking) => booking.roomNumber)
     );
 
-    const roomsWithStatus = rooms.map((room) => ({
-      _id: room._id,
-      title: room.title,
-      room_number: room.room_number,
-      price: room.price,
-      status: room.status,
-      category: room.category,
-      isBooked: bookedRoomNumbers.has(parseInt(room.room_number)),
-      canSelect:
-        !bookedRoomNumbers.has(parseInt(room.room_number)) &&
-        room.status === "available",
-    }));
+    const roomsWithStatus = rooms.map((room) => {
+      // Ensure safe access to category properties
+      const category = room.category || { name: 'Unknown' };
+      
+      return {
+        _id: room._id,
+        title: room.title,
+        room_number: room.room_number,
+        price: room.price,
+        status: room.status,
+        category: category,
+        isBooked: bookedRoomNumbers.has(parseInt(room.room_number)),
+        canSelect:
+          !bookedRoomNumbers.has(parseInt(room.room_number)) &&
+          room.status === "available",
+      };
+    });
 
     res.json({ success: true, rooms: roomsWithStatus });
   } catch (error) {
@@ -151,7 +173,27 @@ exports.getAvailableRooms = async (req, res) => {
     // Group by category for easier frontend display
     const groupedByCategory = {};
     
+    // Add uncategorized group for rooms without a category
+    const uncategorizedId = 'uncategorized';
+    groupedByCategory[uncategorizedId] = {
+      categoryId: uncategorizedId,
+      categoryName: 'Uncategorized',
+      rooms: []
+    };
+    
     rooms.forEach(room => {
+      if (!room.category) {
+        // Add to uncategorized group
+        groupedByCategory[uncategorizedId].rooms.push({
+          _id: room._id,
+          title: room.title,
+          room_number: room.room_number,
+          price: room.price,
+          description: room.description
+        });
+        return;
+      }
+      
       const categoryId = room.category._id.toString();
       const categoryName = room.category.name;
       
@@ -172,9 +214,12 @@ exports.getAvailableRooms = async (req, res) => {
       });
     });
     
+    // Remove empty categories
+    const filteredCategories = Object.values(groupedByCategory).filter(category => category.rooms.length > 0);
+    
     res.json({
       success: true,
-      availableRooms: Object.values(groupedByCategory),
+      availableRooms: filteredCategories,
       totalCount: rooms.length
     });
   } catch (error) {

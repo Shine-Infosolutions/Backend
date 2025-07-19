@@ -18,18 +18,38 @@ app.use(express.json());
 // Database connection
 let isConnected = false;
 
-const connectToDatabase = async () => {
-  if (isConnected) return;
-  
-  try {
-    await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/login');
-    isConnected = true;
-    console.log('MongoDB connected');
-  } catch (error) {
-    console.error('MongoDB connection error:', error);
-    throw error;
+// Connect to MongoDB with improved settings
+mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/login', {
+  serverSelectionTimeoutMS: 30000,  // Increase timeout to 30 seconds
+  socketTimeoutMS: 45000,           // Socket timeout
+  connectTimeoutMS: 30000,          // Connection timeout
+})
+.then(() => {
+  isConnected = true;
+  console.log('MongoDB connected successfully');
+})
+.catch(err => {
+  console.error('MongoDB connection error:', err);
+});
+
+// Add connection event listeners
+mongoose.connection.on('error', err => {
+  console.error('MongoDB connection error:', err);
+  isConnected = false;
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.log('MongoDB disconnected');
+  isConnected = false;
+});
+
+// Middleware to check database connection before processing requests
+app.use((req, res, next) => {
+  if (!isConnected && req.path !== '/health') {
+    return res.status(503).json({ error: 'Database connection unavailable' });
   }
-};
+  next();
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -37,23 +57,22 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/rooms', roomRoutes);
 
-app.get('/', async (req, res) => {
-  try {
-    await connectToDatabase();
-    res.send('API is running');
-  } catch (error) {
-    res.status(500).send('Database connection error');
-  }
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok',
+    dbConnected: isConnected
+  });
 });
 
-// Connect to database before handling API requests
-app.use(async (req, res, next) => {
-  try {
-    await connectToDatabase();
-    next();
-  } catch (error) {
-    res.status(500).json({ error: 'Database connection failed' });
-  }
+app.get('/', (req, res) => {
+  res.send('API is running');
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Server error:', err);
+  res.status(500).json({ error: 'Server error', message: err.message });
 });
 
 // For local development
