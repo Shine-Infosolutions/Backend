@@ -15,5 +15,7 @@ router.put('/update/:id', authMiddleware(['admin']), roomController.updateRoom);
 router.delete('/delete/:id', authMiddleware(['admin']), roomController.deleteRoom);
 // Get rooms by category with booking status
 router.get('/category/:categoryId', roomController.getRoomsByCategory);
+// Get all available rooms
+router.get('/available', roomController.getAvailableRooms);
 
 module.exports = router;
