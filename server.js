@@ -15,22 +15,21 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Database connection
+// Database connection for serverless environment
 let cachedDb = null;
 
 async function connectToDatabase() {
   if (cachedDb) {
+    console.log('Using cached database connection');
     return cachedDb;
   }
   
   try {
-    // Connect to MongoDB with improved settings for serverless
+    // Connect to MongoDB with optimized settings for serverless
     const client = await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/login', {
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 30000,
       connectTimeoutMS: 10000,
-      maxPoolSize: 10,
-      minPoolSize: 5,
     });
     
     console.log('MongoDB connected successfully');
