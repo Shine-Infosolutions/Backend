@@ -1,6 +1,6 @@
-const Reservation = require('../models/Reservation');
-const Room = require('../models/Room');
-const Bookings = require('../models/Booking'); 
+const Reservation = require('../models/Reservation.js');
+const Room = require('../models/Room.js');
+const Bookings = require('../models/Booking.js'); 
 
 // Generate unique GRC number
 const generateGRC = async () => {

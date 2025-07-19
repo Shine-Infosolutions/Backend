@@ -3,10 +3,10 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 require('dotenv').config();
 
-const authRoutes = require('./src/routes/auth');
-const categoryRoutes = require('./src/routes/category');
-const bookingRoutes = require('./src/routes/booking');
-const roomRoutes = require('./src/routes/roomRoutes');
+const authRoutes = require('./src/routes/auth.js');
+const categoryRoutes = require('./src/routes/category.js');
+const bookingRoutes = require('./src/routes/booking.js');
+const roomRoutes = require('./src/routes/roomRoutes.js');
 
 // Initialize express app
 const app = express();
