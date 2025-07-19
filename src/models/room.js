@@ -48,4 +48,4 @@ try {
   Room = mongoose.model('Room', RoomSchema);
 }
 
-module.exports = Room;
+module.exports = mongoose.model('Room', RoomSchema);
