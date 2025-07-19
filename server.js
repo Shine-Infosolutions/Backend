@@ -9,6 +9,7 @@ const bookingRoutes = require('./src/routes/booking');
 //const departmentRoutes = require('./src/routes/department');
 //const employeeRoutes = require('./src/routes/employee');
 const roomRoutes = require('./src/routes/roomRoutes');
+const reservationRoutes = require('./src/routes/reservation');
 
 const app = express();
 app.use(cors());
@@ -27,6 +28,7 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/rooms', roomRoutes);
 //app.use('/api/departments', departmentRoutes);
 //app.use('/api/employees', employeeRoutes);
+app.use('/api/reservations', reservationRoutes);
 
 app.get('/', (req, res) => {
   res.send('API is running');
