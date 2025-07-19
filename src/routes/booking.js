@@ -38,4 +38,18 @@ router.delete(
   bookingController.permanentlyDeleteBooking
 );
 
+// ✅ Update booking (admin or staff from 'reception')
+router.put(
+  "/update/:bookingId",
+  authMiddleware(["admin", "staff"], ["reception"]),
+  bookingController.updateBooking
+);
+
+// ✅ Extend booking (admin or staff from 'reception')
+router.post(
+  "/extend/:bookingId",
+  authMiddleware(["admin", "staff"], ["reception"]),
+  bookingController.extendBooking
+);
+
 module.exports = router;
