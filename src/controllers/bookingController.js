@@ -1,16 +1,15 @@
 const Booking = require('../models/Booking');
 const Category = require('../models/Category');
+const Room = require('../models/Room');
 
 // Book a room for a category (single or multiple)
 exports.bookRoom = async (req, res) => {
   try {
-    const Room = require("../models/Room");
     const handleBooking = async (categoryId, count, extraDetails = {}) => {
       const category = await Category.findById(categoryId);
       if (!category) throw new Error(`Category not found: ${categoryId}`);
 
       // Find available rooms in this category
-      const Room = require("../models/Room");
       const availableRooms = await Room.find({ category: categoryId, status: 'available' }).limit(count);
       if (availableRooms.length < count) {
         throw new Error(`Not enough available rooms in ${category.name}`);
@@ -95,7 +94,17 @@ exports.getBookings = async (req, res) => {
   try {
     const filter = req.query.all === 'true' ? {} : { isActive: true };
     const bookings = await Booking.find(filter).populate('category');
-    res.json(bookings);
+    
+    // Map bookings to ensure safe access to category properties
+    const safeBookings = bookings.map(booking => {
+      const bookingObj = booking.toObject();
+      if (!bookingObj.category) {
+        bookingObj.category = { name: 'Unknown' };
+      }
+      return bookingObj;
+    });
+    
+    res.json(safeBookings);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -106,7 +115,17 @@ exports.getBookingsByCategory = async (req, res) => {
   try {
     const { categoryId } = req.params;
     const bookings = await Booking.find({ category: categoryId }).populate('category');
-    res.json(bookings);
+    
+    // Map bookings to ensure safe access to category properties
+    const safeBookings = bookings.map(booking => {
+      const bookingObj = booking.toObject();
+      if (!bookingObj.category) {
+        bookingObj.category = { name: 'Unknown' };
+      }
+      return bookingObj;
+    });
+    
+    res.json(safeBookings);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -127,7 +146,6 @@ exports.deleteBooking = async (req, res) => {
     await booking.save();
 
     // Set Room.status to 'available' when unbooking
-    const Room = require("../models/Room");
     await Room.findOneAndUpdate(
       { category: booking.category, room_number: String(booking.roomNumber) },
       { status: 'available' }

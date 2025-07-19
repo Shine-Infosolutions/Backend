@@ -1,5 +1,5 @@
 const Reservation = require('../models/Reservation');
-const Room = require('../models/room');
+const Room = require('../models/Room');
 const Bookings = require('../models/Booking'); 
 
 // Generate unique GRC number
@@ -41,7 +41,17 @@ exports.getAllReservations = async (req, res) => {
       .populate('category')
       .populate('roomAssigned')
       .sort({ createdAt: -1 });
-    res.json({ success: true, reservations });
+      
+    // Map reservations to ensure safe access to populated fields
+    const safeReservations = reservations.map(reservation => {
+      const resObj = reservation.toObject();
+      if (!resObj.category) {
+        resObj.category = { name: 'Unknown' };
+      }
+      return resObj;
+    });
+      
+    res.json({ success: true, reservations: safeReservations });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -56,7 +66,14 @@ exports.getReservationById = async (req, res) => {
     if (!reservation) {
       return res.status(404).json({ success: false, message: 'Reservation not found' });
     }
-    res.json({ success: true, reservation });
+    
+    // Ensure safe access to populated fields
+    const safeReservation = reservation.toObject();
+    if (!safeReservation.category) {
+      safeReservation.category = { name: 'Unknown' };
+    }
+    
+    res.json({ success: true, reservation: safeReservation });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -71,7 +88,14 @@ exports.getReservationByGRC = async (req, res) => {
     if (!reservation) {
       return res.status(404).json({ success: false, message: 'Reservation not found' });
     }
-    res.json({ success: true, reservation });
+    
+    // Ensure safe access to populated fields
+    const safeReservation = reservation.toObject();
+    if (!safeReservation.category) {
+      safeReservation.category = { name: 'Unknown' };
+    }
+    
+    res.json({ success: true, reservation: safeReservation });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
