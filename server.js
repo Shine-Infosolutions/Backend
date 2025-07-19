@@ -16,39 +16,46 @@ app.use(cors());
 app.use(express.json());
 
 // Database connection
-let isConnected = false;
+let cachedDb = null;
 
-// Connect to MongoDB with improved settings
-mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/login', {
-  serverSelectionTimeoutMS: 30000,  // Increase timeout to 30 seconds
-  socketTimeoutMS: 45000,           // Socket timeout
-  connectTimeoutMS: 30000,          // Connection timeout
-})
-.then(() => {
-  isConnected = true;
-  console.log('MongoDB connected successfully');
-})
-.catch(err => {
-  console.error('MongoDB connection error:', err);
-});
+async function connectToDatabase() {
+  if (cachedDb) {
+    return cachedDb;
+  }
+  
+  try {
+    // Connect to MongoDB with improved settings for serverless
+    const client = await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/login', {
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 30000,
+      connectTimeoutMS: 10000,
+      maxPoolSize: 10,
+      minPoolSize: 5,
+    });
+    
+    console.log('MongoDB connected successfully');
+    cachedDb = client;
+    return client;
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    throw error;
+  }
+}
 
-// Add connection event listeners
-mongoose.connection.on('error', err => {
-  console.error('MongoDB connection error:', err);
-  isConnected = false;
-});
-
-mongoose.connection.on('disconnected', () => {
-  console.log('MongoDB disconnected');
-  isConnected = false;
-});
-
-// Middleware to check database connection before processing requests
-app.use((req, res, next) => {
-  if (!isConnected && req.path !== '/health') {
+// Middleware to ensure database connection before processing requests
+app.use(async (req, res, next) => {
+  try {
+    // Skip DB connection check for health endpoint
+    if (req.path === '/health') {
+      return next();
+    }
+    
+    await connectToDatabase();
+    next();
+  } catch (error) {
+    console.error('Database connection error:', error);
     return res.status(503).json({ error: 'Database connection unavailable' });
   }
-  next();
 });
 
 // Routes
@@ -61,7 +68,7 @@ app.use('/api/rooms', roomRoutes);
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'ok',
-    dbConnected: isConnected
+    dbConnected: !!cachedDb
   });
 });
 
