@@ -29,7 +29,7 @@ const RoomSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['available', 'booked', 'maintenance'],
+    enum: ['available', 'reserved', 'booked', 'maintenance'], // ✅ Added "reserved"
     default: 'available'
   },
   description: {
@@ -40,12 +40,5 @@ const RoomSchema = new mongoose.Schema({
   }]
 }, { timestamps: true });
 
-// Use a more reliable way to export the model
-let Room;
-try {
-  Room = mongoose.model('Room');
-} catch (error) {
-  Room = mongoose.model('Room', RoomSchema);
-}
-
-module.exports = mongoose.model('Room', RoomSchema);
+// ✅ Prevent OverwriteModelError + cleaner export
+module.exports = mongoose.models.Room || mongoose.model('Room', RoomSchema);
