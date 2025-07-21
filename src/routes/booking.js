@@ -47,7 +47,7 @@ router.delete(
 
 // ✅ Permanently delete (admin only)
 router.delete(
-  "/permanent-delete/:bookingId",
+  "/delete/:bookingId",
   authMiddleware(["admin"]),
   bookingController.permanentlyDeleteBooking
 );
