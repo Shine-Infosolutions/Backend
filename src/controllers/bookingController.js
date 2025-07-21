@@ -331,3 +331,25 @@ exports.extendBooking = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// Get booking by GRC Number
+exports.getBookingByGRC = async (req, res) => {
+  try {
+    const { grcNo } = req.params;
+
+    const booking = await Booking.findOne({ grcNo }).populate('categoryId');
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found with given GRC' });
+    }
+
+    const result = booking.toObject();
+    if (!result.categoryId) {
+      result.categoryId = { name: 'Unknown' };
+    }
+
+    res.json({ success: true, booking: result });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
