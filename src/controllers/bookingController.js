@@ -353,3 +353,25 @@ exports.getBookingByGRC = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// Get booking by Booking ID
+exports.getBookingById = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+
+    const booking = await Booking.findById(bookingId).populate('categoryId');
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    const result = booking.toObject();
+    if (!result.categoryId) {
+      result.categoryId = { name: 'Unknown' };
+    }
+
+    res.json({ success: true, booking: result });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
