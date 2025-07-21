@@ -8,12 +8,18 @@ const categoryRoutes = require('./src/routes/category.js');
 const bookingRoutes = require('./src/routes/booking.js');
 const roomRoutes = require('./src/routes/roomRoutes.js');
 const reservationRoutes = require('./src/routes/reservation.js');
+const housekeepingRoutes = require('./src/routes/housekeepingRoutes.js');
+const path = require('path');
 // Initialize express app
 const app = express();
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+
+// Serve uploaded files for fallback method
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 
 // Database connection for serverless environment
 let cachedDb = null;
@@ -63,6 +69,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/reservations', reservationRoutes);
+app.use('/api/housekeeping', housekeepingRoutes);
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ 
