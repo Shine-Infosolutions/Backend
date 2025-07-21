@@ -8,6 +8,7 @@ const categoryRoutes = require('./src/routes/category.js');
 const bookingRoutes = require('./src/routes/booking.js');
 const roomRoutes = require('./src/routes/roomRoutes.js');
 const reservationRoutes = require('./src/routes/reservation.js');
+const laundryRoutes = require('./src/routes/laundry.js');
 // Initialize express app
 const app = express();
 
@@ -63,6 +64,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/reservations', reservationRoutes);
+app.use('/api/laundry', laundryRoutes);
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ 
