@@ -59,3 +59,47 @@ exports.login = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+exports.getStaffProfile = async (req, res) => {
+  try {
+    // Get user ID from the authenticated request
+    const userId = req.user.id;
+    
+    // Find the user with their department details
+    const user = await User.findById(userId).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // For staff users, return their specific data
+    if (user.role === 'staff') {
+      return res.json({
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        departments: user.department,
+        createdAt: user.createdAt
+      });
+    } 
+    // For admin users
+    else if (user.role === 'admin') {
+      return res.json({
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        departments: user.department,
+        isAdmin: true,
+        createdAt: user.createdAt
+      });
+    }
+    
+    // Fallback
+    return res.json(user);
+    
+  } catch (err) {
+    console.error('Error in getStaffProfile:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
