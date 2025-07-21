@@ -31,6 +31,13 @@ router.get(
   bookingController.getBookingByGRC
 );
 
+// ✅ Get booking by ID (admin or staff from 'reception')
+router.get(
+  "/:bookingId",
+  authMiddleware(["admin", "staff"], ["reception"]),
+  bookingController.getBookingById
+);
+
 // ✅ Unbook (soft delete) (admin or staff from 'reception')
 router.delete(
   "/delete/:bookingId",
