@@ -12,7 +12,7 @@ router.get('/grc/:grcNo',  authMiddleware(["admin", "staff"], ["reception"]), co
 router.put('/:id',  authMiddleware(["admin", "staff"], ["reception"]), controller.updateReservation);
 router.patch('/:id/cancel',  authMiddleware(["admin", "staff"], ["reception"]), controller.cancelReservation);
 router.patch('/:id/no-show',  authMiddleware(["admin", "staff"], ["reception"]), controller.markNoShow);
-router.patch('/:id/link-checkin',  authMiddleware(["admin", "staff"], ["reception"]), controller.linkToCheckIn);
+router.patch('/:id/link-booking',  authMiddleware(["admin", "staff"], ["reception"]), controller.linkToCheckIn);
 router.delete('/:id',  authMiddleware(["admin", "staff"], ["reception"]), controller.deleteReservation);
 
 module.exports = router;
