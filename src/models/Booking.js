@@ -2,32 +2,30 @@ const mongoose = require('mongoose');
 
 const bookingSchema = new mongoose.Schema({
   // 🔹 Core Booking Info
-  category: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Category',
-    //required: true
-  },
-  roomNumber: {
-    type: Number,
-    //required: true
-  },
-  numberOfRooms: {
-    type: Number,
-    default: 1
-  },
-  isActive: {
-    type: Boolean,
-    default: true
-  },
-  referenceNumber: {
+  grcNo: { type: String, unique: true, required: true },  // Guest Registration Card No
+  reservationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Reservation', default: null },
+  
+  categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Category' },
+  roomNumber: { type: Number },
+  numberOfRooms: { type: Number, default: 1 },
+  isActive: { type: Boolean, default: true },
+  status: {
     type: String,
-    //required: true,
-    unique: true
+    enum: ['Booked', 'Checked In', 'Checked Out', 'Cancelled'],
+    default: 'Booked'
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
+  referenceNumber: { type: String, unique: true },
+  createdAt: { type: Date, default: Date.now },
+
+  // 🔹 Guest Info
+  guestDetails: {
+    salutation: String,
+    name: { type: String },
+    age: Number,
+    gender: { type: String, enum: ['Male', 'Female', 'Other'] },
+    photoUrl: String
   },
+
   // 🔹 Contact Info
   contactDetails: {
     phone: String,
@@ -46,20 +44,15 @@ const bookingSchema = new mongoose.Schema({
       enum: ['Aadhaar', 'PAN', 'Passport', 'Driving License', 'Voter ID', 'Other']
     },
     idNumber: String,
-    idPhotoFront: String, // Cloudinary URL
+    idPhotoFront: String, // Cloudinary URL or public image link
     idPhotoBack: String
   },
 
-  // 🔹 Booking Details
+  // 🔹 Booking Info
   bookingInfo: {
-    checkIn: {
-      type: Date,
-      //required: true
-    },
-    checkOut: {
-      type: Date,
-      //required: true
-    },
+    checkIn: { type: Date },
+    checkOut: { type: Date },
+
     arrivalFrom: String,
     bookingType: {
       type: String,
@@ -70,7 +63,7 @@ const bookingSchema = new mongoose.Schema({
     adults: Number,
     children: Number
   },
-  
+
   // 🔹 Extension History
   extensionHistory: [
     {
@@ -99,7 +92,21 @@ const bookingSchema = new mongoose.Schema({
     billingName: String,
     billingAddress: String,
     gstNumber: String
-  }
-});
+  },
 
-module.exports = mongoose.model('Booking', bookingSchema);
+  // 🔹 Vehicle Info
+  vehicleDetails: {
+    vehicleNumber: String,
+    vehicleType: String,
+    vehicleModel: String,
+    driverName: String,
+    driverMobile: String
+  },
+
+  // 🔹 Flags
+  vip: { type: Boolean, default: false },
+  isForeignGuest: { type: Boolean, default: false },
+
+}, { timestamps: true });
+
+module.exports = mongoose.models.Booking || mongoose.model('Booking', bookingSchema);

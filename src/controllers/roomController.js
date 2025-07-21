@@ -10,7 +10,7 @@ exports.createRoom = async (req, res) => {
       category,
       room_number,
       price,
-      exptra_bed,
+      extra_bed,
       is_reserved,
       status,
       description,
@@ -21,7 +21,7 @@ exports.createRoom = async (req, res) => {
       category,
       room_number, // Ensure room_number is included
       price,
-      exptra_bed,
+      extra_bed,
       is_reserved,
       status,
       description,
