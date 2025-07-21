@@ -24,6 +24,13 @@ router.get(
   bookingController.getBookingsByCategory
 );
 
+// get by grc number
+router.get(
+  "/grc/:grcNo",
+  authMiddleware(["admin", "staff"], ["reception"]),
+  bookingController.getBookingByGRC
+);
+
 // ✅ Unbook (soft delete) (admin or staff from 'reception')
 router.delete(
   "/delete/:bookingId",
