@@ -86,7 +86,7 @@ const reservationSchema = new mongoose.Schema(
   
       linkedCheckInId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "CheckIn",
+        ref: "Booking",
       }, // Link to check-in if completed
   
       // --- Added Fields ---

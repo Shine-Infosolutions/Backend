@@ -1,6 +1,17 @@
-const Booking = require('../models/Booking.js');
-const Category = require('../models/Category.js');
-const Room = require('../models/Room.js');
+const Booking = require("../models/Booking.js");
+const Category = require("../models/Category.js");
+const Room = require("../models/Room.js");
+
+// 🔹 Generate unique GRC number
+const generateGRC = async () => {
+  let grcNo, exists = true;
+  while (exists) {
+    const rand = Math.floor(1000 + Math.random() * 9000);
+    grcNo = `GRC-${rand}`;
+    exists = await Booking.findOne({ grcNo });
+  }
+  return grcNo;
+};
 
 // Book a room for a category (single or multiple)
 exports.bookRoom = async (req, res) => {
@@ -9,7 +20,6 @@ exports.bookRoom = async (req, res) => {
       const category = await Category.findById(categoryId);
       if (!category) throw new Error(`Category not found: ${categoryId}`);
 
-      // Find available rooms in this category
       const availableRooms = await Room.find({ category: categoryId, status: 'available' }).limit(count);
       if (availableRooms.length < count) {
         throw new Error(`Not enough available rooms in ${category.name}`);
@@ -19,7 +29,12 @@ exports.bookRoom = async (req, res) => {
       for (let i = 0; i < availableRooms.length; i++) {
         const room = availableRooms[i];
         const referenceNumber = `REF-${Math.floor(100000 + Math.random() * 900000)}`;
+        const grcNo = await generateGRC();
+        const reservationId = extraDetails.reservationId || null;
+
         const booking = new Booking({
+          grcNo,
+          reservationId,
           category: categoryId,
           roomNumber: room.room_number,
           isActive: true,
@@ -29,37 +44,39 @@ exports.bookRoom = async (req, res) => {
           contactDetails: extraDetails.contactDetails,
           identityDetails: extraDetails.identityDetails,
           bookingInfo: extraDetails.bookingInfo,
-          paymentDetails: extraDetails.paymentDetails
+          paymentDetails: extraDetails.paymentDetails,
+          vehicleDetails: extraDetails.vehicleDetails || {},
+          vip: extraDetails.vip || false
         });
+
         await booking.save();
+
         // Set Room.status to 'booked'
         room.status = 'booked';
         await room.save();
         bookedRoomNumbers.push(room.room_number);
       }
 
-      // Return all booked room records
       const bookings = await Booking.find({
         roomNumber: { $in: bookedRoomNumbers },
         category: categoryId
       });
+
       return bookings;
     };
 
-    // 🔹 Handle multiple bookings
+    // 🔹 Multiple Bookings
     if (Array.isArray(req.body.bookings)) {
       const results = [];
-
       for (const item of req.body.bookings) {
         const { categoryId, count, ...extraDetails } = item;
         const bookings = await handleBooking(categoryId, count, extraDetails);
         results.push(...bookings);
       }
-
       return res.status(201).json({ success: true, booked: results });
     }
 
-    // 🔹 Handle single booking
+    // 🔹 Single Booking
     const {
       categoryId,
       count,
@@ -67,7 +84,10 @@ exports.bookRoom = async (req, res) => {
       contactDetails,
       identityDetails,
       bookingInfo,
-      paymentDetails
+      paymentDetails,
+      vehicleDetails,
+      vip,
+      reservationId
     } = req.body;
 
     if (!categoryId) return res.status(400).json({ error: 'categoryId is required' });
@@ -79,7 +99,10 @@ exports.bookRoom = async (req, res) => {
       contactDetails,
       identityDetails,
       bookingInfo,
-      paymentDetails
+      paymentDetails,
+      vehicleDetails,
+      vip,
+      reservationId
     });
 
     return res.status(201).json({ success: true, booked: bookings });
@@ -93,7 +116,7 @@ exports.bookRoom = async (req, res) => {
 exports.getBookings = async (req, res) => {
   try {
     const filter = req.query.all === 'true' ? {} : { isActive: true };
-    const bookings = await Booking.find(filter).populate('category');
+    const bookings = await Booking.find(filter).populate('categoryId');
     
     // Map bookings to ensure safe access to category properties
     const safeBookings = bookings.map(booking => {
@@ -114,7 +137,7 @@ exports.getBookings = async (req, res) => {
 exports.getBookingsByCategory = async (req, res) => {
   try {
     const { categoryId } = req.params;
-    const bookings = await Booking.find({ category: categoryId }).populate('category');
+    const bookings = await Booking.find({ category: categoryId }).populate('categoryId');
     
     // Map bookings to ensure safe access to category properties
     const safeBookings = bookings.map(booking => {
@@ -175,43 +198,61 @@ exports.updateBooking = async (req, res) => {
   try {
     const { bookingId } = req.params;
     const updates = req.body;
-    
+
     // Fields that cannot be updated directly
-    const restrictedFields = ['isActive', 'referenceNumber', 'createdAt', '_id'];
+    const restrictedFields = ['isActive', 'referenceNumber', 'createdAt', '_id', 'grcNo'];
     restrictedFields.forEach(field => delete updates[field]);
-    
+
     const booking = await Booking.findById(bookingId);
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
-    
-    // Update allowed fields safely
+
+    // 💬 Update allowed nested object fields
     if (updates.guestDetails) {
       if (!booking.guestDetails) booking.guestDetails = {};
       Object.assign(booking.guestDetails, updates.guestDetails);
     }
+
     if (updates.contactDetails) {
       if (!booking.contactDetails) booking.contactDetails = {};
       Object.assign(booking.contactDetails, updates.contactDetails);
     }
+
     if (updates.identityDetails) {
       if (!booking.identityDetails) booking.identityDetails = {};
       Object.assign(booking.identityDetails, updates.identityDetails);
     }
+
     if (updates.bookingInfo) {
       if (!booking.bookingInfo) booking.bookingInfo = {};
       Object.assign(booking.bookingInfo, updates.bookingInfo);
     }
+
     if (updates.paymentDetails) {
       if (!booking.paymentDetails) booking.paymentDetails = {};
       Object.assign(booking.paymentDetails, updates.paymentDetails);
     }
-    // Handle direct fields
+
+    if (updates.vehicleDetails) {
+      if (!booking.vehicleDetails) booking.vehicleDetails = {};
+      Object.assign(booking.vehicleDetails, updates.vehicleDetails);
+    }
+
+    // 💬 Update simple fields
     if (updates.roomNumber) booking.roomNumber = updates.roomNumber;
     if (updates.numberOfRooms) booking.numberOfRooms = updates.numberOfRooms;
+    if (typeof updates.vip !== 'undefined') booking.vip = updates.vip;
+    if (updates.reservationId) booking.reservationId = updates.reservationId;
+    if (updates.status) booking.status = updates.status;
 
-    // Handle extension logic if extendedCheckOut is present
+    // 💬 Optional: Update actual check-in/out times (if passed)
+    if (updates.actualCheckInTime) booking.bookingInfo.actualCheckInTime = new Date(updates.actualCheckInTime);
+    if (updates.actualCheckOutTime) booking.bookingInfo.actualCheckOutTime = new Date(updates.actualCheckOutTime);
+
+    // 💬 Handle extensions
     if (updates.extendedCheckOut) {
       const originalCheckIn = booking.bookingInfo.checkIn;
       const originalCheckOut = booking.bookingInfo.checkOut;
+
       booking.extensionHistory.push({
         originalCheckIn,
         originalCheckOut,
@@ -221,14 +262,16 @@ exports.updateBooking = async (req, res) => {
         paymentMode: updates.paymentMode,
         approvedBy: updates.approvedBy
       });
+
       booking.bookingInfo.checkOut = new Date(updates.extendedCheckOut);
+
       if (updates.additionalAmount) {
         booking.paymentDetails.totalAmount = (booking.paymentDetails.totalAmount || 0) + updates.additionalAmount;
       }
     }
 
     await booking.save();
-    
+
     res.json({
       success: true,
       message: 'Booking updated successfully',
@@ -238,6 +281,7 @@ exports.updateBooking = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
 
 // 🔹 Extend booking stay
 exports.extendBooking = async (req, res) => {
