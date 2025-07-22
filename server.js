@@ -3,27 +3,80 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 require('dotenv').config();
 
-const authRoutes = require('./src/routes/auth');
-const categoryRoutes = require('./src/routes/category');
-const bookingRoutes = require('./src/routes/booking');
-//const departmentRoutes = require('./src/routes/department');
-//const employeeRoutes = require('./src/routes/employee');
-
+const authRoutes = require('./src/routes/auth.js');
+const categoryRoutes = require('./src/routes/category.js');
+const bookingRoutes = require('./src/routes/booking.js');
+const roomRoutes = require('./src/routes/roomRoutes.js');
+const reservationRoutes = require('./src/routes/reservation.js');
+const housekeepingRoutes = require('./src/routes/housekeepingRoutes.js');
+const path = require('path');
+// Initialize express app
 const app = express();
 
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
-// Connect to MongoDB
-mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/login', {
+// Serve uploaded files for fallback method
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+
+// Database connection for serverless environment
+let cachedDb = null;
+
+async function connectToDatabase() {
+  if (cachedDb) {
+    console.log('Using cached database connection');
+    return cachedDb;
+  }
+  
+  try {
+    // Connect to MongoDB with optimized settings for serverless
+    const client = await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/login', {
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 30000,
+      connectTimeoutMS: 10000,
+    });
+    
+    console.log('MongoDB connected successfully');
+    cachedDb = client;
+    return client;
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    throw error;
+  }
+}
+
+// Middleware to ensure database connection before processing requests
+app.use(async (req, res, next) => {
+  try {
+    // Skip DB connection check for health endpoint
+    if (req.path === '/health') {
+      return next();
+    }
+    
+    await connectToDatabase();
+    next();
+  } catch (error) {
+    console.error('Database connection error:', error);
+    return res.status(503).json({ error: 'Database connection unavailable' });
+  }
 });
 
+// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/bookings', bookingRoutes);
-//app.use('/api/departments', departmentRoutes);
-//app.use('/api/employees', employeeRoutes);
+app.use('/api/rooms', roomRoutes);
+app.use('/api/reservations', reservationRoutes);
+app.use('/api/housekeeping', housekeepingRoutes);
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok',
+    dbConnected: !!cachedDb
+  });
+});
 
 app.get('/', (req, res) => {
   res.send('API is running');
