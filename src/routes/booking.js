@@ -40,7 +40,7 @@ router.get(
 
 // ✅ Unbook (soft delete) (admin or staff from 'reception')
 router.delete(
-  "/unbooks/:bookingId",
+  "/unbook/:bookingId",
   authMiddleware(["admin", "staff"], ["reception"]),
   bookingController.deleteBooking
 );

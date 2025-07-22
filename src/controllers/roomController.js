@@ -165,6 +165,28 @@ exports.getRoomsByCategory = async (req, res) => {
   }
 };
 
+// Update room status directly
+exports.updateRoomStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    
+    if (!status || !['available', 'reserved', 'booked', 'maintenance'].includes(status)) {
+      return res.status(400).json({ error: "Invalid status value" });
+    }
+    
+    const room = await Room.findById(id);
+    if (!room) return res.status(404).json({ error: "Room not found" });
+    
+    room.status = status;
+    await room.save();
+    
+    res.json({ success: true, room });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
 // Get all available rooms
 exports.getAvailableRooms = async (req, res) => {
   try {

@@ -36,7 +36,7 @@ router.get(
 // Update task status
 router.patch(
   '/tasks/:taskId/status',
-  authMiddleware(['admin', 'staff']), // Allow any staff, controller will check permissions
+  authMiddleware(['admin', 'staff'], ['housekeeping']), // Specifically allow housekeeping staff
   housekeepingController.updateTaskStatus
 );
 

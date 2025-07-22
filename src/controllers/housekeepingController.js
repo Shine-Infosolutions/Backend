@@ -130,6 +130,19 @@ exports.updateTaskStatus = async (req, res) => {
         const diffMs = endTime - startTime;
         task.completionTime = Math.round(diffMs / 60000); // Convert ms to minutes
       }
+      
+      // When task is completed, update the room status to available
+      if (task.roomId) {
+        const room = await Room.findById(task.roomId);
+        if (room) {
+          console.log(`Updating room ${room.room_number} status from ${room.status} to available`);
+          room.status = 'available';
+          await room.save();
+          console.log(`Room status updated to: ${room.status}`);
+        } else {
+          console.log(`Room not found for task: ${task._id}`);
+        }
+      }
     }
     
     if (status === 'verified') {

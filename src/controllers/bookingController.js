@@ -1,6 +1,7 @@
 const Booking = require("../models/Booking.js");
 const Category = require("../models/Category.js");
 const Room = require("../models/Room.js");
+const Housekeeping = require("../models/Housekeeping.js");
 
 // 🔹 Generate unique GRC number
 const generateGRC = async () => {
@@ -161,20 +162,60 @@ exports.deleteBooking = async (req, res) => {
     const booking = await Booking.findById(bookingId);
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
 
+    // Even if booking is already inactive, proceed with room status update
     if (!booking.isActive) {
-      return res.status(400).json({ error: 'Booking already inactive' });
+      console.log('Note: Booking was already inactive, proceeding with room status update');
+    } else {
+      booking.isActive = false;
+      await booking.save();
     }
 
-    booking.isActive = false;
-    await booking.save();
+    // Find the room associated with this booking
+    // Try to find by room number first
+    let room = await Room.findOne({ room_number: String(booking.roomNumber) });
+    
+    // If not found, try with category as well
+    if (!room && booking.category) {
+      room = await Room.findOne({ 
+        category: booking.category, 
+        room_number: String(booking.roomNumber) 
+      });
+    }
+    
+    // If still not found, try direct lookup by room number as number
+    if (!room) {
+      room = await Room.findOne({ room_number: booking.roomNumber });
+    }
 
-    // Set Room.status to 'available' when unbooking
-    await Room.findOneAndUpdate(
-      { category: booking.category, room_number: String(booking.roomNumber) },
-      { status: 'available' }
-    );
+    if (room) {
+      // Set Room.status to 'maintenance' when unbooking
+      room.status = 'maintenance';
+      await room.save();
 
-    res.json({ success: true, message: 'Booking unbooked (marked inactive)' });
+      // Check if a housekeeping task already exists for this room
+      const existingTask = await Housekeeping.findOne({
+        roomId: room._id,
+        status: { $in: ['pending', 'in-progress'] }
+      });
+
+      if (!existingTask) {
+        // Create a housekeeping task for this room
+        const housekeepingTask = new Housekeeping({
+          roomId: room._id,
+          cleaningType: 'checkout',
+          notes: 'Room needs cleaning after checkout',
+          priority: 'high',
+          status: 'pending'
+        });
+
+        await housekeepingTask.save();
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Room set to maintenance status. Housekeeping task created.' 
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
