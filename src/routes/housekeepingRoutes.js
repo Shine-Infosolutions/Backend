@@ -3,7 +3,7 @@ const router = express.Router();
 const housekeepingController = require('../controllers/housekeepingController');
 const uploadController = require('../controllers/uploadController');
 const authMiddleware = require('../middleware/authMiddleware');
-const upload = require('../middleware/uploadMiddleware');
+// const upload = require('../middleware/uploadMiddleware');
 
 // Create a new housekeeping task (admin or staff from reception/housekeeping)
 router.post(
@@ -108,8 +108,5 @@ router.post(
   authMiddleware(['admin', 'staff']),
   uploadController.uploadBase64Images
 );
-
-// Upload housekeeping photo directly to Firebase Storage
-router.post('/upload-photo', upload.single('photo'), housekeepingController.uploadHousekeepingPhoto);
 
 module.exports = router;
