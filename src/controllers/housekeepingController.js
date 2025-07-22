@@ -1,20 +1,6 @@
 const Housekeeping = require('../models/Housekeeping');
 const User = require('../models/User.js');
 const Room = require('../models/Room');
-const { bucket } = require("../firebase");
-
-// Example function to upload a file
-async function uploadPhotoToFirebase(localFilePath, destination) {
-  await bucket.upload(localFilePath, {
-    destination, // e.g., 'housekeeping/photos/photo1.jpg'
-    public: true, // Optional: make file public
-    metadata: {
-      cacheControl: 'public, max-age=31536000',
-    },
-  });
-  // Get public URL
-  return `https://storage.googleapis.com/${bucket.name}/${destination}`;
-}
 
 // Create a new housekeeping task
 exports.createTask = async (req, res) => {
@@ -342,39 +328,5 @@ exports.uploadAfterImages = async (req, res) => {
     res.json({ success: true, task });
   } catch (error) {
     res.status(500).json({ error: error.message });
-  }
-};
-
-exports.uploadHousekeepingPhoto = async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-
-    const fileName = `housekeeping/photos/${Date.now()}_${req.file.originalname}`;
-    const file = bucket.file(fileName);
-
-    const stream = file.createWriteStream({
-      metadata: {
-        contentType: req.file.mimetype,
-        cacheControl: 'public, max-age=31536000',
-      }
-    });
-
-    stream.on('error', (err) => {
-      console.error(err);
-      res.status(500).json({ error: 'Photo upload failed' });
-    });
-
-    stream.on('finish', async () => {
-      await file.makePublic();
-      const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
-      res.status(200).json({ url: publicUrl });
-    });
-
-    stream.end(req.file.buffer);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Photo upload failed' });
   }
 };
