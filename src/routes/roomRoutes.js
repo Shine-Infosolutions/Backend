@@ -4,7 +4,7 @@ const roomController = require('../controllers/roomController');
 const authMiddleware = require('../middleware/authMiddleware');
 
 // Create a new room (admin only)
-router.post('/add', authMiddleware(['admin']), roomController.createRoom);
+router.post('/add',  roomController.createRoom);
 // Get all rooms
 router.get('/all', roomController.getRooms);
 // Get a room by ID

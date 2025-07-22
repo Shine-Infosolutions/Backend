@@ -45,15 +45,28 @@ exports.getLaundryByBookingId = async (req, res) => {
     }
   };
   
-  exports.getLaundryByRoom = async (req, res) => {
-    try {
-      const laundry = await Laundry.find({ roomId: req.params.roomId });
-      res.json({ success: true, laundry });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
+// Get laundry by roomId OR roomNumber (either param works)
+exports.getLaundryByRoom = async (req, res) => {
+  try {
+    const { roomId, roomNumber } = req.query;
+
+    if (!roomId && !roomNumber) {
+      return res.status(400).json({ success: false, message: "roomId or roomNumber is required" });
     }
-  };
-  
+
+    const query = roomId ? { roomId } : { roomNumber };
+    const laundry = await Laundry.find(query)
+      .populate("bookingId")
+      .populate("roomId")
+      .populate("categoryId");
+
+    res.json({ success: true, laundry });
+  } catch (error) {
+    console.error("Error getting laundry by room:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+ 
   exports.getLaundryByGRC = async (req, res) => {
     try {
       const laundry = await Laundry.find({ grcNo: req.params.grcNo });
@@ -222,3 +235,58 @@ exports.deleteLaundry = async (req, res) => {
       res.status(500).json({ error: error.message });
     }
   };  
+
+  exports.getPendingOrUrgentLaundry = async (req, res) => {
+    try {
+      const filter = {
+        $or: [
+          { laundryStatus: 'pending' },
+          { isUrgent: true }
+        ],
+        isCancelled: false
+      };
+      const laundry = await Laundry.find(filter);
+      res.json({ success: true, laundry });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  };
+
+  exports.getLaundryByBatchCode = async (req, res) => {
+    try {
+      const batchCode = req.params.batchCode;
+      const laundry = await Laundry.find({ batchCode });
+      res.json({ success: true, laundry });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  };
+  
+  exports.bulkUpdateLaundryStatus = async (req, res) => {
+    try {
+      const { updates } = req.body;
+  
+      if (!Array.isArray(updates) || updates.length === 0) {
+        return res.status(400).json({ success: false, message: "No updates provided" });
+      }
+  
+      const bulkOperations = updates.map((item) => {
+        const { laundryId, itemName, newStatus } = item;
+  
+        return {
+          updateOne: {
+            filter: { _id: laundryId, "items.name": itemName },
+            update: { $set: { "items.$.status": newStatus } },
+          }
+        };
+      });
+  
+      await Laundry.bulkWrite(bulkOperations);
+  
+      res.status(200).json({ success: true, message: "Statuses updated successfully" });
+    } catch (error) {
+      console.error("Bulk update error:", error);
+      res.status(500).json({ success: false, message: "Bulk update failed", error });
+    }
+  };
+  
