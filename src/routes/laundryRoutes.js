@@ -7,10 +7,10 @@ const authMiddleware = require("../middleware/authMiddleware");
 router.post("/", authMiddleware(["admin", "staff"], ["reception", "housekeeping", "laundry"]), laundryController.createLaundryOrder);
 
 // ✅ Get all laundry with filters
-router.get("/", authMiddleware(["admin"], ["laundry"]), laundryController.getAllLaundryOrders);
+router.get("/all", authMiddleware(["admin"], ["laundry"]), laundryController.getAllLaundryOrders);
 
 // ✅ Get laundry by ID
-router.get("/:id", authMiddleware(["admin", "staff"], ["laundry"]), laundryController.getLaundryById);
+router.get("get/:id", authMiddleware(["admin", "staff"], ["laundry"]), laundryController.getLaundryById);
 
 // ✅ Get by Booking ID
 router.get("/booking/:bookingId", authMiddleware(["admin", "staff"], ["laundry", "reception"]), laundryController.getLaundryByBookingId);
@@ -22,7 +22,7 @@ router.get("/room/:roomId", authMiddleware(["admin", "staff"], ["laundry", "rece
 router.get("/grc/:grcNo", authMiddleware(["admin", "staff"], ["laundry", "reception"]), laundryController.getLaundryByGRC);
 
 // ✅ Update entire laundry record
-router.put("/:id", authMiddleware(["admin", "staff"], ["laundry"]), laundryController.updateLaundryOrder);
+router.put("/update/:id", authMiddleware(["admin", "staff"], ["laundry"]), laundryController.updateLaundryOrder);
 
 // ✅ Update individual laundry item (status, damage etc.)
 router.patch("/item/:laundryId/:itemName", authMiddleware(["admin", "staff"], ["laundry"]), laundryController.updateLaundryItemStatus);
