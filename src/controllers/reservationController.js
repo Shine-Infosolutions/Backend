@@ -24,8 +24,14 @@ exports.createReservation = async (req, res) => {
 
     // Optional: auto-update room status if assigned
     if (reservation.roomAssigned) {
-      await Room.findByIdAndUpdate(reservation.roomAssigned, { status: 'reserved' });
+      const updatedRoom = await Room.findByIdAndUpdate(
+        reservation.roomAssigned,
+        { status: 'reserved', is_reserved: true },
+        { new: true }
+      );
+      console.log('Room updated:', updatedRoom);
     }
+    
 
     await reservation.save();
     res.status(201).json({ success: true, reservation });
