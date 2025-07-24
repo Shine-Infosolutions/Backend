@@ -13,15 +13,67 @@ exports.createLaundryOrder = async (req, res) => {
 
 // ✅ Get All Laundry Orders (optional filters)
 exports.getAllLaundryOrders = async (req, res) => {
-    try {
-      const filter = { ...req.query };
-      const laundry = await Laundry.find(filter)
-        .populate("bookingId roomId previousRoomId categoryId pickupBy deliveredBy createdBy approvalBy");
-      res.json({ success: true, laundry });
-    } catch (error) {
-      res.status(500).json({ success: false, error: error.message });
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = "createdAt",
+      order = "desc",
+      search = "",
+      grcNo,
+      roomNumber,
+      status,
+      isUrgent
+    } = req.query;
+
+    const query = {};
+
+    // 🔍 Full-text-like search on grcNo, roomNumber, requestedByName
+    if (search) {
+      query.$or = [
+        { grcNo: { $regex: search, $options: "i" } },
+        { roomNumber: { $regex: search, $options: "i" } },
+        { requestedByName: { $regex: search, $options: "i" } },
+      ];
     }
-  };  
+
+    // 🎯 Filters
+    if (grcNo) query.grcNo = grcNo;
+    if (roomNumber) query.roomNumber = roomNumber;
+    if (status) query.laundryStatus = status;
+    if (typeof isUrgent !== "undefined") query.isUrgent = isUrgent === "true";
+
+    // 🔁 Pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // 🔽 Sorting
+    const sortOption = {};
+    sortOption[sortBy] = order === "asc" ? 1 : -1;
+
+    // 📦 Main query
+    const [laundry, total] = await Promise.all([
+      Laundry.find(query)
+        .populate("bookingId roomId previousRoomId categoryId pickupBy deliveredBy createdBy approvalBy")
+        .sort(sortOption)
+        .skip(skip)
+        .limit(parseInt(limit)),
+      Laundry.countDocuments(query)
+    ]);
+
+    res.json({
+      success: true,
+      laundry,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
 
 // ✅ Get Laundry by ID
 exports.getLaundryById = async (req, res) => {
