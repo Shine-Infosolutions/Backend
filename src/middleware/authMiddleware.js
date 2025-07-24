@@ -14,7 +14,7 @@ function authMiddleware(roles = [], departments = []) {
         return res.status(403).json({ message: 'Access denied: role' });
       }
 
-      // ✅ Department check for staff users
+      // ✅ Department check for staff users only (admins bypass department check)
       if (departments.length && user.role === 'staff') {
         let userDepartments = [];
 

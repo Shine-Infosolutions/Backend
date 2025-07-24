@@ -11,6 +11,8 @@ const reservationRoutes = require('./src/routes/reservation.js');
 const housekeepingRoutes = require('./src/routes/housekeepingRoutes.js');
 const laundryRoutes = require('./src/routes/laundryRoutes.js');
 const cabRoutes = require('./src/routes/cabBookingRoutes.js');
+const inventoryRoutes = require('./src/routes/inventoryRoutes.js');
+const purchaseOrderRoutes = require('./src/routes/purchaseOrderRoutes.js');
 const path = require('path');
 // Initialize express app
 const app = express();
@@ -74,6 +76,8 @@ app.use('/api/reservations', reservationRoutes);
 app.use('/api/housekeeping', housekeepingRoutes);
 app.use('/api/laundry', laundryRoutes);
 app.use('/api/cab', cabRoutes);
+app.use('/api/inventory', inventoryRoutes);
+app.use('/api/purchase-orders', purchaseOrderRoutes);
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ 
