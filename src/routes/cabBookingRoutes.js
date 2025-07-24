@@ -17,16 +17,16 @@ router.get(
   cabController.getAllCabBookings
 );
 
-// Update cab booking status
+// Update cab booking (any field like status or others)
 router.put(
-  '/bookings/:bookingId/status',
+  '/bookings/:id',
   authMiddleware(['admin', 'staff'], ['reception']),
-  cabController.updateCabBookingStatus
+  cabController.updateCabBooking
 );
 
 // Delete cab booking
 router.delete(
-  '/bookings/:bookingId',
+  '/bookings/:id',
   authMiddleware(['admin']),
   cabController.deleteCabBooking
 );
