@@ -1,7 +1,7 @@
 const CabBooking = require('../models/cabBooking');
-const Room = require('../models/Room');
+const Room       = require('../models/Room');
 
-// Create a new cab booking
+// ── Create a new cab booking ─────────────────────────────────────────────
 exports.createCabBooking = async (req, res) => {
   try {
     const {
@@ -16,19 +16,12 @@ exports.createCabBooking = async (req, res) => {
       cabType = 'standard',
       specialInstructions,
       scheduled = false,
-      estimatedFare,
-      actualFare,
-      distanceInKm,
-      paymentStatus = 'unpaid',
       vehicleNumber,
       driverName,
       driverContact,
     } = req.body;
 
     // Validate required fields
-    // if (!purpose) {
-    //   return res.status(400).json({ error: 'Purpose is required' });
-    // }
     if (!pickupLocation) {
       return res.status(400).json({ error: 'Pickup location is required' });
     }
@@ -39,9 +32,9 @@ exports.createCabBooking = async (req, res) => {
       return res.status(400).json({ error: 'Pickup time is required' });
     }
 
-    // Verify room if roomNumber provided
+    // If roomNumber provided, verify it exists
     if (roomNumber) {
-      const room = await Room.findOne({ room_number: roomNumber });
+      const room = await Room.findOne({ roomNumber });
       if (!room) {
         return res.status(404).json({ error: 'Room not found' });
       }
@@ -59,10 +52,6 @@ exports.createCabBooking = async (req, res) => {
       cabType,
       specialInstructions,
       scheduled,
-      estimatedFare,
-      actualFare,
-      distanceInKm,
-      paymentStatus,
       vehicleNumber,
       driverName,
       driverContact,
@@ -73,71 +62,91 @@ exports.createCabBooking = async (req, res) => {
     await booking.save();
     res.status(201).json({ success: true, booking });
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ success: false, error: error.message });
   }
 };
 
-// Get all cab bookings
+// ── Get all cab bookings ─────────────────────────────────────────────────
 exports.getAllCabBookings = async (req, res) => {
   try {
-    const { status } = req.query;
-
+    const { status, purpose } = req.query;
     const filter = {};
-    if (status) filter.status = status;
+
+    if (status)  filter.status  = status;
+    if (purpose) filter.purpose = purpose;
 
     const bookings = await CabBooking.find(filter)
-      .populate('createdBy', 'username')
       .sort({ pickupTime: 1 });
 
     res.json({ success: true, bookings });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 };
 
-// Get single cab booking by ID
+// ── Get a single cab booking by ID ────────────────────────────────────────
 exports.getCabBookingById = async (req, res) => {
   try {
-    const booking = await CabBooking.findById(req.params.id).populate('createdBy', 'username');
-    if (!booking) return res.status(404).json({ error: 'Cab booking not found' });
+    const booking = await CabBooking.findById(req.params.id);
+    if (!booking) {
+      return res.status(404).json({ success: false, error: 'Cab booking not found' });
+    }
     res.json({ success: true, booking });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 };
 
-// Update cab booking status and/or other fields
+// ── Update any fields on a booking ───────────────────────────────────────
 exports.updateCabBooking = async (req, res) => {
   try {
-    const { id } = req.params;
-    const updateData = req.body;
+    const updated = await CabBooking.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    );
 
-    // Optional: validate status and enums here if needed
-
-    const booking = await CabBooking.findByIdAndUpdate(id, updateData, {
-      new: true,
-      runValidators: true,
-    });
-    if (!booking) return res.status(404).json({ error: 'Booking not found' });
-
-    res.json({ success: true, booking });
+    if (!updated) {
+      return res.status(404).json({ success: false, error: 'Booking not found' });
+    }
+    res.json({ success: true, booking: updated });
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ success: false, error: error.message });
   }
 };
 
-// Delete cab booking
+// ── Cancel a booking ─────────────────────────────────────────────────────
+exports.cancelCabBooking = async (req, res) => {
+  try {
+    const updates = {
+      status: 'cancelled',
+      cancellationReason: req.body.cancellationReason || 'No reason provided'
+    };
+
+    const cancelled = await CabBooking.findByIdAndUpdate(
+      req.params.id,
+      updates,
+      { new: true }
+    );
+
+    if (!cancelled) {
+      return res.status(404).json({ success: false, error: 'Booking not found' });
+    }
+    res.json({ success: true, booking: cancelled });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// ── Delete a booking permanently ─────────────────────────────────────────
 exports.deleteCabBooking = async (req, res) => {
   try {
-    const { id } = req.params;
-
-    const booking = await CabBooking.findByIdAndDelete(id);
-    if (!booking) {
-      return res.status(404).json({ error: 'Booking not found' });
+    const deleted = await CabBooking.findByIdAndDelete(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ success: false, error: 'Booking not found' });
     }
-
     res.json({ success: true, message: 'Cab booking deleted successfully' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 };

@@ -42,17 +42,6 @@ const cabBookingSchema = new mongoose.Schema({
     default: false, 
   },
 
-  // Fare Estimation & Final Charges
-  estimatedFare: Number,
-  actualFare: Number,
-  distanceInKm: Number,
-
-  paymentStatus: {
-    type: String,
-    enum: ['unpaid', 'paid', 'not_required'],
-    default: 'unpaid',
-  },
-
   // Cab Vehicle & Driver Info
   vehicleNumber: String,
   driverName: String,
@@ -65,13 +54,6 @@ const cabBookingSchema = new mongoose.Schema({
     default: 'pending',
   },
   cancellationReason: String,
-
-
-  createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true,  
-  },
 }, {
   timestamps: true  
 });
