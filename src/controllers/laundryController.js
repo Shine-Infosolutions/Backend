@@ -11,7 +11,7 @@ exports.createLaundryOrder = async (req, res) => {
   }
 };
 
-// ✅ Get All Laundry Orders (optional filters)
+// ✅ Get All Laundry Orders
 exports.getAllLaundryOrders = async (req, res) => {
   try {
     const laundry = await Laundry.find()
@@ -109,8 +109,8 @@ exports.updateLaundryItemStatus = async (req, res) => {
 
     if (status) item.status = status;
     if (typeof deliveredQuantity !== "undefined") item.deliveredQuantity = deliveredQuantity;
-    if (beforeImage) item.beforeImage = beforeImage;
-    if (afterImage) item.afterImage = afterImage;
+    // if (beforeImage) item.beforeImage = beforeImage;
+    // if (afterImage) item.afterImage = afterImage;
     if (typeof damageReported !== "undefined") item.damageReported = damageReported;
     if (itemNotes) item.itemNotes = itemNotes;
 
@@ -195,7 +195,7 @@ exports.updateLaundryBilling = async (req, res) => {
       paymentStatus,
       isComplimentary,
       discountPercent,
-      invoiceId,  // You may uncomment in schema if used
+     // invoiceId,  // You may uncomment in schema if used
     } = req.body;
     const updates = {
       billStatus,
@@ -203,7 +203,7 @@ exports.updateLaundryBilling = async (req, res) => {
     };
     if (typeof isComplimentary !== "undefined") updates.isComplimentary = isComplimentary;
     if (typeof discountPercent !== "undefined") updates.discountPercent = discountPercent;
-    if (invoiceId) updates.invoiceId = invoiceId;
+    //if (invoiceId) updates.invoiceId = invoiceId;
 
     const updated = await Laundry.findByIdAndUpdate(req.params.id, updates, { new: true });
     res.json({ success: true, message: "Billing/discount updated", laundry: updated });
@@ -322,5 +322,76 @@ exports.addItemsToLaundryOrder = async (req, res) => {
     res.json({ success: true, message: "Items added", laundry: updated });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+};
+
+// ✅ Get Laundry Orders with Search, Filter, Pagination, Sorting
+exports.getLaundryWithQuery = async (req, res) => {
+  try {
+    // Extract query params
+    const {
+      search,            // text search on fields like grcNo, requestedByName, remarks etc
+      roomId,
+      roomNumber,
+      bookingId,
+      laundryStatus,
+      isUrgent,
+      isCancelled,
+      page = 1,          // default page 1
+      limit = 10,        // default 10 items per page
+      sortBy = "createdAt", // default sort field
+      sortOrder = "desc"   // asc or desc
+    } = req.query;
+
+    // Build MongoDB filter object
+    const filter = {};
+
+    if (search) {
+      // Example: do case-insensitive partial match on grcNo, requestedByName, remarks
+      filter.$or = [
+        { grcNo: { $regex: search, $options: "i" } },
+        { requestedByName: { $regex: search, $options: "i" } },
+        { remarks: { $regex: search, $options: "i" } }
+      ];
+    }
+
+    if (roomId) filter.roomId = roomId;
+    if (roomNumber) filter.roomNumber = roomNumber;
+    if (bookingId) filter.bookingId = bookingId;
+    if (laundryStatus) filter.laundryStatus = laundryStatus;
+    if (typeof isUrgent !== "undefined") filter.isUrgent = isUrgent === "true";
+    if (typeof isCancelled !== "undefined") filter.isCancelled = isCancelled === "true";
+
+    // Pagination calculation
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Sorting object
+    const sortOrderNum = sortOrder === "asc" ? 1 : -1;
+    const sortObj = {};
+    sortObj[sortBy] = sortOrderNum;
+
+    // Query with filter, pagination, sorting, and population
+    const laundry = await Laundry.find(filter)
+      .sort(sortObj)
+      .skip(skip)
+      .limit(limitNum)
+      .populate("bookingId roomId previousRoomId pickupBy deliveredBy createdBy approvalBy");
+
+    // Total count for pagination frontend
+    const totalCount = await Laundry.countDocuments(filter);
+
+    res.json({
+      success: true,
+      page: pageNum,
+      limit: limitNum,
+      totalCount,
+      totalPages: Math.ceil(totalCount / limitNum),
+      laundry,
+    });
+
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
   }
 };

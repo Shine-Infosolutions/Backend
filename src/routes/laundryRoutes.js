@@ -10,6 +10,13 @@ router.post(
   laundryController.createLaundryOrder
 );
 
+// search pagination and filtering
+router.get(
+  "/search",
+  authMiddleware(["admin", "staff"], ["laundry"]), 
+  laundryController.getLaundryWithQuery
+);
+
 // ✅ Get all laundry orders with filters
 router.get(
   "/",
