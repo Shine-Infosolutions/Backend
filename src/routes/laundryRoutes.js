@@ -94,6 +94,14 @@ router.patch(
   laundryController.transferLaundryOrder
 );
 
+// ✅ Add items to existing laundry order
+router.patch(
+  "/add-items/:id",
+  authMiddleware(["admin", "staff"], ["laundry"]),
+  laundryController.addItemsToLaundryOrder
+);
+
+
 // ✅ Delete laundry order permanently by ID
 router.delete(
   "/:id",

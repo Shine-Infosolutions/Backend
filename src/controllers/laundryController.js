@@ -298,3 +298,29 @@ exports.bulkUpdateLaundryStatus = async (req, res) => {
     res.status(500).json({ success: false, message: "Bulk update failed", error });
   }
 };
+
+// ✅ Add new items to existing laundry order
+exports.addItemsToLaundryOrder = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { newItems } = req.body; // newItems: [{ itemName, quantity, laundryServiceType, ... }]
+
+    if (!Array.isArray(newItems) || newItems.length === 0) {
+      return res.status(400).json({ error: "No items provided" });
+    }
+
+    const updated = await Laundry.findByIdAndUpdate(
+      id,
+      { $push: { items: { $each: newItems } } },
+      { new: true, runValidators: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ error: "Laundry order not found" });
+    }
+
+    res.json({ success: true, message: "Items added", laundry: updated });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
