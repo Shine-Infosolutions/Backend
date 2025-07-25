@@ -1,41 +1,61 @@
 const mongoose = require('mongoose');
 
 const cabBookingSchema = new mongoose.Schema({
-  roomNumber: {
+  purpose: {
     type: String,
-    required: true
+    enum: ['guest_transport', 'hotel_supply', 'staff_pickup', 'sightseeing', 'other'],
+    default: 'guest_transport', 
+    //required: true,
   },
-  guestName: {
+
+  // Guest or Room Info (only relevant if purpose = guest_transport or sightseeing)
+  guestName: String,
+  roomNumber: String,
+  grcNo: String, // Optional guest linkage
+  guestType: {
     type: String,
-    required: true
+    enum: ['inhouse', 'external'],
+    default: 'inhouse',
   },
-  pickupTime: {
-    type: Date,
-    required: true
+
+  // Ride Details
+  pickupLocation: {
+    type: String,
+    required: true,
   },
   destination: {
     type: String,
-    required: true
+    required: true,
+  },
+  pickupTime: {
+    type: Date,
+    required: true,
   },
   cabType: {
     type: String,
     enum: ['standard', 'premium', 'suv'],
-    default: 'standard'
-  },
-  status: {
-    type: String,
-    enum: ['pending', 'confirmed', 'completed', 'cancelled'],
-    default: 'pending'
+    default: 'standard',
   },
   specialInstructions: String,
-  createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+  scheduled: {
+    type: Boolean,
+    default: false, 
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
+
+  // Cab Vehicle & Driver Info
+  vehicleNumber: String,
+  driverName: String,
+  driverContact: String,
+
+  // Status Tracking
+  status: {
+    type: String,
+    enum: ['pending', 'confirmed', 'on_route', 'completed', 'cancelled'],
+    default: 'pending',
+  },
+  cancellationReason: String,
+}, {
+  timestamps: true  
 });
 
 module.exports = mongoose.model('CabBooking', cabBookingSchema);

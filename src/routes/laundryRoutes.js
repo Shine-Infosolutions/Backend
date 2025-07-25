@@ -3,55 +3,95 @@ const router = express.Router();
 const laundryController = require("../controllers/laundryController");
 const authMiddleware = require("../middleware/authMiddleware");
 
-// ✅ Create new laundry order
-router.post("/", authMiddleware(["admin", "staff"], ["reception", "housekeeping", "laundry"]), laundryController.createLaundryOrder);
+// — Create
+router.post(
+  "/",
+  authMiddleware(["admin", "staff"], ["laundry"]),
+  laundryController.createLaundryOrder
+);
 
-// ✅ Get all laundry with filters
-router.get("/", authMiddleware(["admin"], ["laundry"]), laundryController.getAllLaundryOrders);
+// — Read all (with optional ?urgent=true)
+router.get(
+  "/",
+  authMiddleware(["admin", "staff"], ["laundry"]),
+  laundryController.getAllLaundryOrders
+);
 
-// ✅ Get laundry by ID
-router.get("/:id", authMiddleware(["admin", "staff"], ["laundry"]), laundryController.getLaundryById);
+// — Search / filter / paginate / sort
+router.get(
+  "/search",
+  authMiddleware(["admin", "staff"], ["laundry"]),
+  laundryController.searchLaundryOrders
+);
 
-// ✅ Get by Booking ID
-router.get("/booking/:bookingId", authMiddleware(["admin", "staff"], ["laundry", "reception"]), laundryController.getLaundryByBookingId);
+// — Read single by ID
+router.get(
+  "/:id",
+  authMiddleware(["admin", "staff"], ["laundry"]),
+  laundryController.getLaundryById
+);
 
-// ✅ Get by Room ID
-router.get("/room/:roomId", authMiddleware(["admin", "staff"], ["laundry", "reception"]), laundryController.getLaundryByRoom);
+// — Read by GRC No
+router.get(
+  "/grc/:grcNo",
+  authMiddleware(["admin", "staff"], ["laundry"]),
+  laundryController.getLaundryByGRC
+);
 
-// ✅ Get by GRC No
-router.get("/grc/:grcNo", authMiddleware(["admin", "staff"], ["laundry", "reception"]), laundryController.getLaundryByGRC);
+// — Read by Room Number
+router.get(
+  "/room/:roomNumber",
+  authMiddleware(["admin", "staff"], ["laundry"]),
+  laundryController.getLaundryByRoom
+);
 
-// ✅ Update entire laundry record
-router.put("/:id", authMiddleware(["admin", "staff"], ["laundry"]), laundryController.updateLaundryOrder);
+// — Update entire order
+router.put(
+  "/:id",
+  authMiddleware(["admin", "staff"], ["laundry"]),
+  laundryController.updateLaundryOrder
+);
 
-// ✅ Update individual laundry item (status, damage etc.)
-router.patch("/item/:laundryId/:itemName", authMiddleware(["admin", "staff"], ["laundry"]), laundryController.updateLaundryItemStatus);
+// — Add items into existing order
+router.patch(
+  "/add-items/:id",
+  authMiddleware(["admin", "staff"], ["laundry"]),
+  laundryController.addItemsToLaundryOrder
+);
 
-// ✅ Cancel order
-router.patch("/cancel/:id", authMiddleware(["admin", "staff"], ["laundry"]), laundryController.cancelLaundryOrder);
+// — Update single item status/notes
+router.patch(
+  "/item/:laundryId/:itemName",
+  authMiddleware(["admin", "staff"], ["laundry"]),
+  laundryController.updateLaundryItemStatus
+);
 
-// ✅ Mark returned
-router.patch("/return/:id", authMiddleware(["admin", "staff"], ["laundry"]), laundryController.markLaundryReturned);
+// — Cancel order
+router.patch(
+  "/cancel/:id",
+  authMiddleware(["admin", "staff"], ["laundry"]),
+  laundryController.cancelLaundryOrder
+);
 
-// ✅ Report damage or loss
-router.post("/loss/:id", authMiddleware(["admin", "staff"], ["laundry"]), laundryController.reportLaundryLossOrDamage);
+// — Mark returned
+router.patch(
+  "/return/:id",
+  authMiddleware(["admin", "staff"], ["laundry"]),
+  laundryController.markLaundryReturned
+);
 
-// ✅ Update billing information
-router.patch("/bill/:id", authMiddleware(["admin", "staff"], ["laundry"]), laundryController.updateLaundryBilling);
+// — Report damage or loss
+router.post(
+  "/loss/:id",
+  authMiddleware(["admin", "staff"], ["laundry"]),
+  laundryController.reportDamageOrLoss
+);
 
-// ✅ Transfer laundry request to another room
-router.patch("/transfer/:id", authMiddleware(["admin", "staff"], ["laundry"]), laundryController.transferLaundryOrder);
-
-// ✅ Delete permanently
-router.delete("/:id", authMiddleware(["admin"]), laundryController.deleteLaundry);
-
-// ✅ Get all pending/urgent laundry orders
-router.get("/status/pending-or-urgent", authMiddleware(["admin", "staff"], ["laundry"]), laundryController.getPendingOrUrgentLaundry);
-
-// ✅ Get laundry orders by batchCode
-router.get("/batch/:batchCode", authMiddleware(["admin", "staff"], ["laundry"]), laundryController.getLaundryByBatchCode);
-
-// ✅ Bulk update status of multiple laundry items
-router.patch("/bulk-status", authMiddleware(["admin", "staff"], ["laundry"]), laundryController.bulkUpdateLaundryStatus);
+// — Delete order
+router.delete(
+  "/:id",
+  authMiddleware(["admin"], ["laundry"]),
+  laundryController.deleteLaundry
+);
 
 module.exports = router;
