@@ -43,9 +43,17 @@ const cabBookingSchema = new mongoose.Schema({
   },
 
   // Cab Vehicle & Driver Info
+  vehicleId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Vehicle',
+  },
   vehicleNumber: String,
-  driverName: String,
-  driverContact: String,
+   // ➤ Reference to Driver
+   driverId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Driver",
+  },
+  driverName: { type: String, trim: true },     //  Snapshot
 
   // Status Tracking
   status: {

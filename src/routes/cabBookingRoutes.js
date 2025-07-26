@@ -24,6 +24,9 @@ router.put(
   cabController.updateCabBooking
 );
 
+// In routes/cabBookingRoutes.js
+router.get("/driver/:driverId", cabController.getCabBookingsByDriver);
+
 // Delete cab booking
 router.delete(
   '/bookings/:id',

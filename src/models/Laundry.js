@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const laundryItemSchema = require("./LaundryItems");
 
 const laundrySchema = new mongoose.Schema({
   grcNo: String,
@@ -15,31 +16,7 @@ const laundrySchema = new mongoose.Schema({
   requestedByName: String,
 
   // Items array
-  items: [
-    {
-      itemName: { type: String, required: true },
-      quantity: { type: Number, default: 1, min: 0 },
-      deliveredQuantity: { type: Number, default: 0, min: 0 }, // Partial/split delivery support
-      laundryServiceType: {
-        type: String,
-        enum: ["wash", "iron", "dry_clean", "wash+iron"],
-      },
-      status: {
-        type: String,
-        enum: [
-          "pending",
-          "picked_up",
-          "washing",
-          "ironing",
-          "ready",
-          "delivered",
-        ],
-        default: "pending",
-      },
-      damageReported: { type: Boolean, default: false },
-      itemNotes: String,
-    },
-  ],
+  items: [laundryItemSchema],
 
   // Laundry order meta
   itemType: {

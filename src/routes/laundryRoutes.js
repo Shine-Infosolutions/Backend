@@ -17,13 +17,6 @@ router.get(
   laundryController.getAllLaundryOrders
 );
 
-// — Search / filter / paginate / sort
-router.get(
-  "/search",
-  authMiddleware(["admin", "staff"], ["laundry"]),
-  laundryController.searchLaundryOrders
-);
-
 // — Read single by ID
 router.get(
   "/:id",
