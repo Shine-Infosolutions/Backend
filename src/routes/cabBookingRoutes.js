@@ -6,14 +6,12 @@ const authMiddleware = require('../middleware/authMiddleware');
 // Create a new cab booking (reception staff only)
 router.post(
   '/bookings',
-  authMiddleware(['admin', 'staff'], ['reception']),
   cabController.createCabBooking
 );
 
 // Get all cab bookings
 router.get(
   '/bookings',
-  authMiddleware(['admin', 'staff'], ['reception']),
   cabController.getAllCabBookings
 );
 

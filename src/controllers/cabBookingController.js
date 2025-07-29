@@ -1,6 +1,7 @@
 const CabBooking = require('../models/cabBooking');
 const Room = require('../models/Room');
 const Driver = require('../models/Driver');
+const Vehicle = require('../models/Vehicle');
 
 // ── Create a new cab booking ─────────────────────────────────────────────
 exports.createCabBooking = async (req, res) => {
@@ -17,26 +18,66 @@ exports.createCabBooking = async (req, res) => {
       cabType = 'standard',
       specialInstructions,
       scheduled = false,
-      vehicleNumber,
-      driverId, // ✔️ Now accepting driverId
+      vehicleId,
+      driverId,
     } = req.body;
 
-    if (!pickupLocation) return res.status(400).json({ error: 'Pickup location is required' });
-    if (!destination) return res.status(400).json({ error: 'Destination is required' });
-    if (!pickupTime) return res.status(400).json({ error: 'Pickup time is required' });
+    // Validate required fields
+    if (!pickupLocation) 
+      return res.status(400).json({ error: 'Pickup location is required' });
+    if (!destination) 
+      return res.status(400).json({ error: 'Destination is required' });
+    if (!pickupTime) 
+      return res.status(400).json({ error: 'Pickup time is required' });
 
-    if (roomNumber) {
-      const room = await Room.findOne({ roomNumber });
-      if (!room) return res.status(404).json({ error: 'Room not found' });
+    // Validate pickupTime
+    const pickupDate = new Date(pickupTime);
+    if (isNaN(pickupDate.getTime())) {
+      return res.status(400).json({ error: 'Invalid pickup time format' });
     }
 
+    // Validate roomNumber if provided
+    if (roomNumber !== undefined && roomNumber !== null) {
+      if (typeof roomNumber !== 'string') {
+        return res.status(400).json({ error: 'roomNumber must be a string' });
+      }
+
+      // Optional: Trim and query room
+      const roomTrimmed = roomNumber.trim();
+      // Using regex to avoid mismatch due to whitespace or case
+      const room = await Room.findOne({ room_number: { $regex: `^${roomTrimmed}$`, $options: 'i' } });
+      if (!room) {
+        return res.status(404).json({ error: 'Room not found' });
+      }
+    }
+
+    // Validate driverId if provided
     let driverName = '';
     if (driverId) {
+      if (!driverId.match(/^[0-9a-fA-F]{24}$/)) {
+        return res.status(400).json({ error: 'Invalid driverId' });
+      }
       const driver = await Driver.findById(driverId);
-      if (!driver) return res.status(404).json({ error: 'Driver not found' });
-      driverName = driver.name;
+      if (!driver) {
+        return res.status(404).json({ error: 'Driver not found' });
+      }
+      driverName = driver.driverName || '';
     }
 
+    // Validate vehicleId if provided
+    let vehicleNumber = '';
+    if (vehicleId) {
+      if (!vehicleId.match(/^[0-9a-fA-F]{24}$/)) {
+        return res.status(400).json({ error: 'Invalid vehicleId' });
+      }
+      const vehicle = await Vehicle.findById(vehicleId);
+      if (!vehicle) {
+        return res.status(404).json({ error: 'Vehicle not found' });
+      }
+      vehicleNumber = vehicle.vehicleNumber || '';
+    }
+
+    // Create new booking
     const booking = new CabBooking({
       purpose,
       guestName,
@@ -45,20 +86,23 @@ exports.createCabBooking = async (req, res) => {
       guestType,
       pickupLocation,
       destination,
-      pickupTime: new Date(pickupTime),
+      pickupTime: pickupDate,
       cabType,
       specialInstructions,
       scheduled,
-      vehicleNumber,
+      vehicleId,
+      vehicleNumber, // snapshot
       driverId,
-      driverName, // Snapshot
+      driverName, // snapshot
       status: 'pending',
     });
 
     await booking.save();
-    res.status(201).json({ success: true, booking });
+
+    return res.status(201).json({ success: true, booking });
   } catch (error) {
-    res.status(400).json({ success: false, error: error.message });
+    console.error("Error creating cab booking:", error);
+    return res.status(500).json({ success: false, error: error.message || 'Server error' });
   }
 };
 
