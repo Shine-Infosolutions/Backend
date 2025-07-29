@@ -6,14 +6,12 @@ const authMiddleware = require('../middleware/authMiddleware');
 // Create a new cab booking (reception staff only)
 router.post(
   '/bookings',
-  authMiddleware(['admin', 'staff'], ['reception']),
   cabController.createCabBooking
 );
 
 // Get all cab bookings
 router.get(
   '/bookings',
-  authMiddleware(['admin', 'staff'], ['reception']),
   cabController.getAllCabBookings
 );
 
@@ -23,6 +21,9 @@ router.put(
   authMiddleware(['admin', 'staff'], ['reception']),
   cabController.updateCabBooking
 );
+
+// In routes/cabBookingRoutes.js
+router.get("/driver/:driverId", cabController.getCabBookingsByDriver);
 
 // Delete cab booking
 router.delete(
