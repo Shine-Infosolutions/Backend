@@ -1,21 +1,15 @@
 const express = require('express');
-const router = express.Router();
 const restaurantOrderController = require('../controllers/restaurantOrderController');
 const authMiddleware = require('../middleware/authMiddleware');
 
-// Create order
-router.post('/orders', authMiddleware(['admin', 'staff']), restaurantOrderController.createOrder);
+const router = express.Router();
 
-// Get all orders
-router.get('/orders', authMiddleware(['admin', 'staff']), restaurantOrderController.getAllOrders);
+router.get('/details/:id', restaurantOrderController.getOrderDetails);
+router.get('/table/:tableNo', restaurantOrderController.getOrdersByTable);
+router.get('/invoice/:id', restaurantOrderController.generateInvoice);
+router.get('/all', restaurantOrderController.getAllOrders);
+router.post('/create', authMiddleware(['admin', 'staff']), restaurantOrderController.createOrder);
+router.patch('/:id/status', authMiddleware(['admin', 'staff']), restaurantOrderController.updateOrderStatus);
 
-// Get order by ID
-router.get('/orders/:orderId', authMiddleware(['admin', 'staff']), restaurantOrderController.getOrderById);
-
-// Update order status
-router.patch('/orders/:orderId/status', authMiddleware(['admin', 'staff']), restaurantOrderController.updateOrderStatus);
-
-// Get available items
-router.get('/items', authMiddleware(['admin', 'staff']), restaurantOrderController.getAvailableItems);
 
 module.exports = router;

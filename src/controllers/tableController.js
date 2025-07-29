@@ -1,4 +1,5 @@
 const Table = require('../models/Table');
+const RestaurantOrder = require('../models/RestaurantOrder');
 
 // Get all tables
 exports.getAllTables = async (req, res) => {
@@ -10,7 +11,18 @@ exports.getAllTables = async (req, res) => {
     if (status) filter.status = status;
     
     const tables = await Table.find(filter).sort({ tableNumber: 1 });
-    res.json({ success: true, tables });
+    
+    // Get tables with active orders
+    const activeOrders = await RestaurantOrder.find({
+      status: { $nin: ['completed', 'cancelled'] }
+    }).distinct('tableNo');
+    
+    // Filter out tables with active orders
+    const availableTables = tables.filter(table => 
+      !activeOrders.includes(table.tableNumber)
+    );
+    
+    res.json({ success: true, tables: availableTables });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

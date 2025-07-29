@@ -15,9 +15,9 @@ const inventoryRoutes = require('./src/routes/inventoryRoutes.js');
 const purchaseOrderRoutes = require('./src/routes/purchaseOrderRoutes.js');
 const pantryRoutes = require('./src/routes/pantryRoutes.js');
 const tableRoutes = require('./src/routes/tableRoutes.js');
-const restaurantOrderRoutes = require('./src/routes/restaurantOrderRoutes.js');
 const itemRoutes = require('./src/routes/itemRoutes');
 const restaurantCategoryRoutes = require('./src/routes/restaurantCategoryRoutes');
+const restaurantOrderRoutes = require('./src/routes/restaurantOrderRoutes');
 const path = require('path');
 // Initialize express app
 const app = express();
@@ -85,9 +85,9 @@ app.use('/api/inventory', inventoryRoutes);
 app.use('/api/purchase-orders', purchaseOrderRoutes);
 app.use('/api/pantry', pantryRoutes);
 app.use('/api/restaurant', tableRoutes);
-app.use('/api/restaurant', restaurantOrderRoutes);
 app.use('/api/items', itemRoutes);
 app.use('/api/restaurant-categories', restaurantCategoryRoutes);
+app.use('/api/restaurant-orders', restaurantOrderRoutes);
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ 
