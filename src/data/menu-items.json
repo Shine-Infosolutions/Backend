@@ -1,0 +1,52 @@
+[
+  {
+    "name": "Margherita Pizza",
+    "Price": 12.99,
+    "Discount": 0,
+    "status": "available",
+    "in_oostock": true,
+    "image": "",
+    "video": "",
+    "description": "Classic pizza with tomato sauce, mozzarella, and fresh basil"
+  },
+  {
+    "name": "Chicken Burger",
+    "Price": 8.50,
+    "Discount": 10,
+    "status": "available",
+    "in_oostock": true,
+    "image": "",
+    "video": "",
+    "description": "Grilled chicken breast with lettuce, tomato, and mayo"
+  },
+  {
+    "name": "Caesar Salad",
+    "Price": 7.25,
+    "Discount": 0,
+    "status": "available",
+    "in_oostock": true,
+    "image": "",
+    "video": "",
+    "description": "Fresh romaine lettuce with Caesar dressing and croutons"
+  },
+  {
+    "name": "Pasta Carbonara",
+    "Price": 14.75,
+    "Discount": 5,
+    "status": "unavailable",
+    "in_oostock": false,
+    "image": "",
+    "video": "",
+    "description": "Creamy pasta with bacon, eggs, and parmesan cheese"
+  },
+  {
+    "name": "Fish Tacos",
+    "Price": 11.00,
+    "Discount": 0,
+    "status": "available",
+    "in_oostock": true,
+    "image": "",
+    "video": "",
+    "description": "Grilled fish with cabbage slaw and lime crema"
+  }
+]
