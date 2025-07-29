@@ -10,10 +10,18 @@ const roomRoutes = require('./src/routes/roomRoutes.js');
 const reservationRoutes = require('./src/routes/reservation.js');
 const housekeepingRoutes = require('./src/routes/housekeepingRoutes.js');
 const laundryRoutes = require('./src/routes/laundryRoutes.js');
+const laundryItemRoutes = require('./src/routes/laundryItemRoutes.js');
 const cabRoutes = require('./src/routes/cabBookingRoutes.js');
+const driverRoutes = require('./src/routes/driverRoutes.js');
+const vehicleRoutes = require('./src/routes/vehicleRoutes.js');
 const inventoryRoutes = require('./src/routes/inventoryRoutes.js');
 const purchaseOrderRoutes = require('./src/routes/purchaseOrderRoutes.js');
 const pantryRoutes = require('./src/routes/pantryRoutes.js');
+const tableRoutes = require('./src/routes/tableRoutes.js');
+const itemRoutes = require('./src/routes/itemRoutes');
+const couponRoutes = require('./src/routes/couponRoutes');
+const restaurantCategoryRoutes = require('./src/routes/restaurantCategoryRoutes');
+const restaurantOrderRoutes = require('./src/routes/restaurantOrderRoutes');
 const path = require('path');
 // Initialize express app
 const app = express();
@@ -76,11 +84,18 @@ app.use('/api/rooms', roomRoutes);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/housekeeping', housekeepingRoutes);
 app.use('/api/laundry', laundryRoutes);
-app.use('/api/laundry-items', laundryItemsRoutes);
+app.use('/api/laundry-items', laundryItemRoutes);
 app.use('/api/cab', cabRoutes);
+app.use('/api/driver', driverRoutes);
+app.use('/api/vehicle', vehicleRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/purchase-orders', purchaseOrderRoutes);
 app.use('/api/pantry', pantryRoutes);
+app.use('/api/restaurant', tableRoutes);
+app.use('/api/items', itemRoutes);
+app.use('/api/coupons', couponRoutes);
+app.use('/api/restaurant-categories', restaurantCategoryRoutes);
+app.use('/api/restaurant-orders', restaurantOrderRoutes);
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ 
