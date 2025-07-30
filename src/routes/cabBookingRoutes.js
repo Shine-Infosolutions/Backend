@@ -13,7 +13,7 @@ router.get('/bookings', cabBookingController.getAllCabBookings);
 router.get('/bookings/:id', cabBookingController.getCabBookingById);
 
 // 🔹 Update a cab booking by ID
-router.put('/bookings/:id', cabBookingController.updateCabBooking);
+router.put('/update/:id', cabBookingController.updateCabBooking);
 
 // 🔹 Cancel a cab booking
 router.patch('/:id/cancel', cabBookingController.cancelCabBooking);
