@@ -4,12 +4,12 @@ const User = require('../models/User.js');
 
 exports.register = async (req, res) => {
   try {
-    const {email, username, password, role, department } = req.body;
+    const {email, username, password, role, department, restaurantRole } = req.body;
     if (!email || !username || !password || !role) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
-    if (!['admin', 'staff'].includes(role)) {
-      return res.status(400).json({ message: 'Invalid role. Only admin or staff allowed.' });
+    if (!['admin', 'staff', 'restaurant'].includes(role)) {
+      return res.status(400).json({ message: 'Invalid role. Only admin, staff, or restaurant allowed.' });
     }
     // const existingUser = await User.findOne({ $or: [{ email }, { username }] });
     // if (existingUser) {
@@ -21,6 +21,9 @@ exports.register = async (req, res) => {
     }
     if (role === 'staff' && !department) {
       return res.status(400).json({ message: 'Staff must have a department' });
+    }
+    if (role === 'restaurant' && !restaurantRole) {
+      return res.status(400).json({ message: 'Restaurant role must be specified' });
     }
     const hashedPassword = await bcrypt.hash(password, 10);
     let userData = { email, username, password: hashedPassword, role };
@@ -38,6 +41,8 @@ exports.register = async (req, res) => {
         { id: 5, name: 'other' },
         { id: 6, name: 'housekeeping' }
       ];
+    } else if (role === 'restaurant') {
+      userData.restaurantRole = restaurantRole;
     }
     const user = new User(userData);
     await user.save();
@@ -54,8 +59,8 @@ exports.login = async (req, res) => {
     if (!user) return res.status(400).json({ message: 'Invalid credentials' });
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
-    const token = jwt.sign({ id: user._id, username: user.username, role: user.role, department: user.department }, process.env.JWT_SECRET || 'your_jwt_secret', { expiresIn: '1d' });
-    res.json({ token, user, role: user.role, department: user.department, username: user.username });
+    const token = jwt.sign({ id: user._id, username: user.username, role: user.role, department: user.department, restaurantRole: user.restaurantRole }, process.env.JWT_SECRET || 'your_jwt_secret', { expiresIn: '1d' });
+    res.json({ token, user, role: user.role, department: user.department, restaurantRole: user.restaurantRole, username: user.username });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -92,6 +97,17 @@ exports.getStaffProfile = async (req, res) => {
         role: user.role,
         departments: user.department,
         isAdmin: true,
+        createdAt: user.createdAt
+      });
+    }
+    // For restaurant users
+    else if (user.role === 'restaurant') {
+      return res.json({
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        restaurantRole: user.restaurantRole,
         createdAt: user.createdAt
       });
     }

@@ -8,8 +8,9 @@ router.get('/details/:id', restaurantOrderController.getOrderDetails);
 router.get('/table/:tableNo', restaurantOrderController.getOrdersByTable);
 router.get('/invoice/:id', restaurantOrderController.generateInvoice);
 router.get('/all', restaurantOrderController.getAllOrders);
-router.post('/create', authMiddleware(['admin', 'staff']), restaurantOrderController.createOrder);
-router.patch('/:id/status', authMiddleware(['admin', 'staff']), restaurantOrderController.updateOrderStatus);
+router.post('/create', authMiddleware(['admin', 'staff', 'restaurant']), restaurantOrderController.createOrder);
+router.patch('/:id/add-items', authMiddleware(['admin', 'staff', 'restaurant']), restaurantOrderController.addItemsToOrder);
+router.patch('/:id/status', authMiddleware(['admin', 'staff', 'restaurant']), restaurantOrderController.updateOrderStatus);
 
 
 module.exports = router;

@@ -4,7 +4,7 @@ const tableController = require('../controllers/tableController');
 const authMiddleware = require('../middleware/authMiddleware');
 
 // Get all tables
-router.get('/tables', authMiddleware(['admin', 'staff']), tableController.getAllTables);
+router.get('/tables', authMiddleware(['admin', 'staff', 'restaurant']), tableController.getAllTables);
 
 // Create table
 router.post('/tables', authMiddleware(['admin']), tableController.createTable);
@@ -13,7 +13,7 @@ router.post('/tables', authMiddleware(['admin']), tableController.createTable);
 router.put('/tables/:tableId', authMiddleware(['admin']), tableController.updateTable);
 
 // Update table status
-router.patch('/tables/:tableId/status', authMiddleware(['admin', 'staff']), tableController.updateTableStatus);
+router.patch('/tables/:tableId/status', authMiddleware(['admin', 'staff', 'restaurant']), tableController.updateTableStatus);
 
 // Delete table
 router.delete('/tables/:tableId', authMiddleware(['admin']), tableController.deleteTable);
