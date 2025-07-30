@@ -1,4 +1,4 @@
-const { Driver } = require("../models/Driver");
+const Driver  = require("../models/Driver");
 const mongoose = require("mongoose");
 
 // ➤ Create Driver
