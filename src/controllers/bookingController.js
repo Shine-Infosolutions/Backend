@@ -2,6 +2,7 @@ const Booking = require("../models/Booking.js");
 const Category = require("../models/Category.js");
 const Room = require("../models/Room.js");
 const Housekeeping = require("../models/Housekeeping.js");
+const mongoose = require('mongoose');
 
 // 🔹 Generate unique GRC number
 const generateGRC = async () => {
@@ -33,21 +34,76 @@ exports.bookRoom = async (req, res) => {
         const grcNo = await generateGRC();
         const reservationId = extraDetails.reservationId || null;
 
+        // Create booking document according to updated flat schema
         const booking = new Booking({
           grcNo,
           reservationId,
-          category: categoryId,
-          roomNumber: room.room_number,
-          isActive: true,
+          categoryId,
+          bookingDate: extraDetails.bookingDate || new Date(),
           numberOfRooms: 1,
-          referenceNumber,
-          guestDetails: extraDetails.guestDetails,
-          contactDetails: extraDetails.contactDetails,
-          identityDetails: extraDetails.identityDetails,
-          bookingInfo: extraDetails.bookingInfo,
-          paymentDetails: extraDetails.paymentDetails,
-          vehicleDetails: extraDetails.vehicleDetails || {},
-          vip: extraDetails.vip || false
+          isActive: true,
+          checkInDate: extraDetails.checkInDate,
+          checkOutDate: extraDetails.checkOutDate,
+          days: extraDetails.days,
+          timeIn: extraDetails.timeIn,
+          timeOut: extraDetails.timeOut,
+
+          salutation: extraDetails.salutation,
+          name: extraDetails.name,
+          age: extraDetails.age,
+          gender: extraDetails.gender,
+          address: extraDetails.address,
+          city: extraDetails.city,
+          nationality: extraDetails.nationality,
+          mobileNo: extraDetails.mobileNo,
+          email: extraDetails.email,
+          phoneNo: extraDetails.phoneNo,
+          birthDate: extraDetails.birthDate,
+          anniversary: extraDetails.anniversary,
+
+          companyName: extraDetails.companyName,
+          companyGSTIN: extraDetails.companyGSTIN,
+
+          idProofType: extraDetails.idProofType,
+          idProofNumber: extraDetails.idProofNumber,
+          idProofImageUrl: extraDetails.idProofImageUrl,
+          idProofImageUrl2: extraDetails.idProofImageUrl2,
+          photoUrl: extraDetails.photoUrl,
+
+          roomNumber: room.room_number,
+          planPackage: extraDetails.planPackage,
+          noOfAdults: extraDetails.noOfAdults,
+          noOfChildren: extraDetails.noOfChildren,
+          rate: extraDetails.rate,
+          taxIncluded: extraDetails.taxIncluded,
+          serviceCharge: extraDetails.serviceCharge,
+
+          arrivedFrom: extraDetails.arrivedFrom,
+          destination: extraDetails.destination,
+          remark: extraDetails.remark,
+          businessSource: extraDetails.businessSource,
+          marketSegment: extraDetails.marketSegment,
+          purposeOfVisit: extraDetails.purposeOfVisit,
+
+          discountPercent: extraDetails.discountPercent,
+          discountRoomSource: extraDetails.discountRoomSource,
+
+          paymentMode: extraDetails.paymentMode,
+          paymentStatus: extraDetails.paymentStatus || 'Pending',
+
+          bookingRefNo: referenceNumber,
+
+          mgmtBlock: extraDetails.mgmtBlock,
+          billingInstruction: extraDetails.billingInstruction,
+
+          temperature: extraDetails.temperature,
+
+          fromCSV: extraDetails.fromCSV,
+          epabx: extraDetails.epabx,
+          vip: extraDetails.vip || false,
+
+          status: extraDetails.status || 'Booked',
+          categoryId: category._id
         });
 
         await booking.save();
@@ -60,7 +116,7 @@ exports.bookRoom = async (req, res) => {
 
       const bookings = await Booking.find({
         roomNumber: { $in: bookedRoomNumbers },
-        category: categoryId
+        categoryId
       });
 
       return bookings;
@@ -81,30 +137,14 @@ exports.bookRoom = async (req, res) => {
     const {
       categoryId,
       count,
-      guestDetails,
-      contactDetails,
-      identityDetails,
-      bookingInfo,
-      paymentDetails,
-      vehicleDetails,
-      vip,
-      reservationId
+      ...extraDetails
     } = req.body;
 
     if (!categoryId) return res.status(400).json({ error: 'categoryId is required' });
 
     const numRooms = count && Number.isInteger(count) && count > 0 ? count : 1;
 
-    const bookings = await handleBooking(categoryId, numRooms, {
-      guestDetails,
-      contactDetails,
-      identityDetails,
-      bookingInfo,
-      paymentDetails,
-      vehicleDetails,
-      vip,
-      reservationId
-    });
+    const bookings = await handleBooking(categoryId, numRooms, extraDetails);
 
     return res.status(201).json({ success: true, booked: bookings });
 
@@ -118,16 +158,16 @@ exports.getBookings = async (req, res) => {
   try {
     const filter = req.query.all === 'true' ? {} : { isActive: true };
     const bookings = await Booking.find(filter).populate('categoryId');
-    
+
     // Map bookings to ensure safe access to category properties
     const safeBookings = bookings.map(booking => {
       const bookingObj = booking.toObject();
-      if (!bookingObj.category) {
-        bookingObj.category = { name: 'Unknown' };
+      if (!bookingObj.categoryId) {
+        bookingObj.categoryId = { name: 'Unknown' };
       }
       return bookingObj;
     });
-    
+
     res.json(safeBookings);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -135,22 +175,21 @@ exports.getBookings = async (req, res) => {
 };
 
 // 🔹 Get bookings by category
+
 exports.getBookingsByCategory = async (req, res) => {
   try {
     const { categoryId } = req.params;
-    const bookings = await Booking.find({ category: categoryId }).populate('categoryId');
-    
-    // Map bookings to ensure safe access to category properties
-    const safeBookings = bookings.map(booking => {
-      const bookingObj = booking.toObject();
-      if (!bookingObj.category) {
-        bookingObj.category = { name: 'Unknown' };
-      }
-      return bookingObj;
-    });
-    
-    res.json(safeBookings);
+    console.log("Received categoryId:", categoryId);
+
+    // Convert categoryId param to ObjectId
+    const mongooseCategoryId = new mongoose.Types.ObjectId(categoryId);
+
+    // Query bookings for that categoryId
+    const bookings = await Booking.find({ categoryId: mongooseCategoryId }).populate('categoryId');
+
+    res.json(bookings);
   } catch (error) {
+    console.error("Error:", error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -171,18 +210,15 @@ exports.deleteBooking = async (req, res) => {
     }
 
     // Find the room associated with this booking
-    // Try to find by room number first
     let room = await Room.findOne({ room_number: String(booking.roomNumber) });
-    
-    // If not found, try with category as well
-    if (!room && booking.category) {
-      room = await Room.findOne({ 
-        category: booking.category, 
-        room_number: String(booking.roomNumber) 
+
+    if (!room && booking.categoryId) {
+      room = await Room.findOne({
+        category: booking.categoryId,
+        room_number: String(booking.roomNumber)
       });
     }
-    
-    // If still not found, try direct lookup by room number as number
+
     if (!room) {
       room = await Room.findOne({ room_number: booking.roomNumber });
     }
@@ -212,9 +248,9 @@ exports.deleteBooking = async (req, res) => {
       }
     }
 
-    res.json({ 
-      success: true, 
-      message: 'Room set to maintenance status. Housekeeping task created.' 
+    res.json({
+      success: true,
+      message: 'Room set to maintenance status. Housekeeping task created.'
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -247,52 +283,42 @@ exports.updateBooking = async (req, res) => {
     const booking = await Booking.findById(bookingId);
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
 
-    // 💬 Update allowed nested object fields
-    if (updates.guestDetails) {
-      if (!booking.guestDetails) booking.guestDetails = {};
-      Object.assign(booking.guestDetails, updates.guestDetails);
-    }
+    // Update allowed simple fields directly on booking document
+    const simpleFields = [
+      'salutation', 'name', 'age', 'gender', 'address', 'city', 'nationality',
+      'mobileNo', 'email', 'phoneNo', 'birthDate', 'anniversary',
 
-    if (updates.contactDetails) {
-      if (!booking.contactDetails) booking.contactDetails = {};
-      Object.assign(booking.contactDetails, updates.contactDetails);
-    }
+      'companyName', 'companyGSTIN',
 
-    if (updates.identityDetails) {
-      if (!booking.identityDetails) booking.identityDetails = {};
-      Object.assign(booking.identityDetails, updates.identityDetails);
-    }
+      'idProofType', 'idProofNumber', 'idProofImageUrl', 'idProofImageUrl2', 'photoUrl',
 
-    if (updates.bookingInfo) {
-      if (!booking.bookingInfo) booking.bookingInfo = {};
-      Object.assign(booking.bookingInfo, updates.bookingInfo);
-    }
+      'roomNumber', 'planPackage', 'noOfAdults', 'noOfChildren', 'rate', 'taxIncluded', 'serviceCharge',
 
-    if (updates.paymentDetails) {
-      if (!booking.paymentDetails) booking.paymentDetails = {};
-      Object.assign(booking.paymentDetails, updates.paymentDetails);
-    }
+      'arrivedFrom', 'destination', 'remark', 'businessSource', 'marketSegment', 'purposeOfVisit',
 
-    if (updates.vehicleDetails) {
-      if (!booking.vehicleDetails) booking.vehicleDetails = {};
-      Object.assign(booking.vehicleDetails, updates.vehicleDetails);
-    }
+      'discountPercent', 'discountRoomSource',
 
-    // 💬 Update simple fields
-    if (updates.roomNumber) booking.roomNumber = updates.roomNumber;
-    if (updates.numberOfRooms) booking.numberOfRooms = updates.numberOfRooms;
-    if (typeof updates.vip !== 'undefined') booking.vip = updates.vip;
-    if (updates.reservationId) booking.reservationId = updates.reservationId;
-    if (updates.status) booking.status = updates.status;
+      'paymentMode', 'paymentStatus',
 
-    // 💬 Optional: Update actual check-in/out times (if passed)
-    if (updates.actualCheckInTime) booking.bookingInfo.actualCheckInTime = new Date(updates.actualCheckInTime);
-    if (updates.actualCheckOutTime) booking.bookingInfo.actualCheckOutTime = new Date(updates.actualCheckOutTime);
+      'bookingRefNo', 'mgmtBlock', 'billingInstruction',
 
-    // 💬 Handle extensions
+      'temperature', 'fromCSV', 'epabx', 'vip',
+
+      'status', 'categoryId', 'reservationId',
+
+      'bookingDate', 'numberOfRooms', 'checkInDate', 'checkOutDate', 'days', 'timeIn', 'timeOut'
+    ];
+
+    simpleFields.forEach(field => {
+      if (typeof updates[field] !== 'undefined') {
+        booking[field] = updates[field];
+      }
+    });
+
+    // Extension History (for updates related to extension)
     if (updates.extendedCheckOut) {
-      const originalCheckIn = booking.bookingInfo.checkIn;
-      const originalCheckOut = booking.bookingInfo.checkOut;
+      const originalCheckIn = booking.checkInDate;
+      const originalCheckOut = booking.checkOutDate;
 
       booking.extensionHistory.push({
         originalCheckIn,
@@ -304,10 +330,10 @@ exports.updateBooking = async (req, res) => {
         approvedBy: updates.approvedBy
       });
 
-      booking.bookingInfo.checkOut = new Date(updates.extendedCheckOut);
+      booking.checkOutDate = new Date(updates.extendedCheckOut);
 
       if (updates.additionalAmount) {
-        booking.paymentDetails.totalAmount = (booking.paymentDetails.totalAmount || 0) + updates.additionalAmount;
+        booking.rate = (booking.rate || 0) + updates.additionalAmount;
       }
     }
 
@@ -323,23 +349,21 @@ exports.updateBooking = async (req, res) => {
   }
 };
 
-
 // 🔹 Extend booking stay
 exports.extendBooking = async (req, res) => {
   try {
     const { bookingId } = req.params;
     const { extendedCheckOut, reason, additionalAmount, paymentMode, approvedBy } = req.body;
-    
+
     const booking = await Booking.findById(bookingId);
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
-    
+
     if (!booking.isActive) {
       return res.status(400).json({ error: 'Cannot extend inactive booking' });
     }
-    
-    // Save original check-in and checkout date
-    const originalCheckIn = booking.bookingInfo.checkIn;
-    const originalCheckOut = booking.bookingInfo.checkOut;
+
+    const originalCheckIn = booking.checkInDate;
+    const originalCheckOut = booking.checkOutDate;
 
     // Add to extension history
     booking.extensionHistory.push({
@@ -351,20 +375,19 @@ exports.extendBooking = async (req, res) => {
       paymentMode,
       approvedBy
     });
-    
+
     // Update checkout date
-    booking.bookingInfo.checkOut = new Date(extendedCheckOut);
-    
-    // Update payment if provided
+    booking.checkOutDate = new Date(extendedCheckOut);
+
+    // Update rate if additionalAmount provided
     if (additionalAmount) {
-      booking.paymentDetails.totalAmount = 
-        (booking.paymentDetails.totalAmount || 0) + additionalAmount;
+      booking.rate = (booking.rate || 0) + additionalAmount;
     }
-    
+
     await booking.save();
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       message: 'Booking extended successfully',
       booking
     });
