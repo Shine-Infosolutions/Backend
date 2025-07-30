@@ -13,7 +13,11 @@ const bookingSchema = new mongoose.Schema({
   checkOutDate: { type: Date, required: true },
   days: { type: Number },
   timeIn: { type: String },
-  timeOut: { type: String },
+  timeOut: {
+    type: String,
+    default: '12:00',
+    immutable: true 
+  },  
 
   salutation: { type: String, enum: ['mr.', 'mrs.', 'ms.', 'dr.', 'other'], default: 'mr.' },
   name: { type: String, required: true },
