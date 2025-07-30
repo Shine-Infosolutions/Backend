@@ -44,7 +44,10 @@ const reservationSchema = new mongoose.Schema(
       checkInDate: Date,
       checkInTime: String,
       checkOutDate: Date,
-      checkOutTime: String,
+      checkOutTime:{type: String,
+        default: '12:00',
+        immutable: true 
+      }, 
       noOfRooms: { type: Number, default: 1 },
       noOfAdults: Number,
       noOfChildren: Number,

@@ -1,35 +1,27 @@
 const express = require('express');
 const router = express.Router();
-const cabController = require('../controllers/cabBookingController');
-const authMiddleware = require('../middleware/authMiddleware');
 
-// Create a new cab booking (reception staff only)
-router.post(
-  '/bookings',
-  cabController.createCabBooking
-);
+const cabBookingController = require('../controllers/cabBookingController');
 
-// Get all cab bookings
-router.get(
-  '/bookings',
-  cabController.getAllCabBookings
-);
+// 🔹 Create a new cab booking
+router.post('/bookings', cabBookingController.createCabBooking);
 
-// Update cab booking (any field like status or others)
-router.put(
-  '/bookings/:id',
-  authMiddleware(['admin', 'staff'], ['reception']),
-  cabController.updateCabBooking
-);
+// 🔹 Get all cab bookings (optional filters: ?status= & purpose=)
+router.get('/bookings', cabBookingController.getAllCabBookings);
 
-// In routes/cabBookingRoutes.js
-router.get("/driver/:driverId", cabController.getCabBookingsByDriver);
+// 🔹 Get a cab booking by ID
+router.get('/bookings/:id', cabBookingController.getCabBookingById);
 
-// Delete cab booking
-router.delete(
-  '/bookings/:id',
-  authMiddleware(['admin']),
-  cabController.deleteCabBooking
-);
+// 🔹 Update a cab booking by ID
+router.put('/update/:id', cabBookingController.updateCabBooking);
+
+// 🔹 Cancel a cab booking
+router.patch('/:id/cancel', cabBookingController.cancelCabBooking);
+
+// 🔹 Delete a cab booking permanently
+router.delete('/delete/:id', cabBookingController.deleteCabBooking);
+
+// 🔹 Get bookings by Driver ID
+router.get('/driver/:driverId', cabBookingController.getCabBookingsByDriver);
 
 module.exports = router;
