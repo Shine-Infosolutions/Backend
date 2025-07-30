@@ -30,7 +30,7 @@ exports.bookRoom = async (req, res) => {
       const bookedRoomNumbers = [];
       for (let i = 0; i < availableRooms.length; i++) {
         const room = availableRooms[i];
-        const referenceNumber = `REF-${Math.floor(100000 + Math.random() * 900000)}`;
+       // const referenceNumber = `REF-${Math.floor(100000 + Math.random() * 900000)}`;
         const grcNo = await generateGRC();
         const reservationId = extraDetails.reservationId || null;
 
@@ -91,7 +91,7 @@ exports.bookRoom = async (req, res) => {
           paymentMode: extraDetails.paymentMode,
           paymentStatus: extraDetails.paymentStatus || 'Pending',
 
-          bookingRefNo: referenceNumber,
+          bookingRefNo: extraDetails.bookingRefNo,
 
           mgmtBlock: extraDetails.mgmtBlock,
           billingInstruction: extraDetails.billingInstruction,
@@ -277,7 +277,7 @@ exports.updateBooking = async (req, res) => {
     const updates = req.body;
 
     // Fields that cannot be updated directly
-    const restrictedFields = ['isActive', 'referenceNumber', 'createdAt', '_id', 'grcNo'];
+    const restrictedFields = ['isActive', 'bookingRefNo', 'createdAt', '_id', 'grcNo'];
     restrictedFields.forEach(field => delete updates[field]);
 
     const booking = await Booking.findById(bookingId);
