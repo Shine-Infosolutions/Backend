@@ -22,6 +22,8 @@ const couponRoutes = require('./src/routes/coupon');
 const restaurantCategoryRoutes = require('./src/routes/restaurantCategoryRoutes');
 const restaurantOrderRoutes = require('./src/routes/restaurantOrderRoutes');
 const kotRoutes = require('./src/routes/kotRoutes');
+const billRoutes = require('./src/routes/billRoutes');
+const searchRoutes = require('./src/routes/searchRoutes');
 const path = require('path');
 // Initialize express app
 const app = express();
@@ -96,6 +98,8 @@ app.use('/api/coupons', couponRoutes);
 app.use('/api/restaurant-categories', restaurantCategoryRoutes);
 app.use('/api/restaurant-orders', restaurantOrderRoutes);
 app.use('/api/kot', kotRoutes);
+app.use('/api/bills', billRoutes);
+app.use('/api/search', searchRoutes);
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ 

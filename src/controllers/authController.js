@@ -120,3 +120,86 @@ exports.getStaffProfile = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
+
+exports.getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find().select('-password').sort({ createdAt: -1 });
+    res.json(users);
+  } catch (err) {
+    console.error('Error in getAllUsers:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+// exports.updateUser = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const updates = req.body;
+    
+//     // Remove password from updates if present
+//     delete updates.password;
+    
+//     const user = await User.findByIdAndUpdate(id, updates, { new: true }).select('-password');
+//     if (!user) return res.status(404).json({ message: 'User not found' });
+    
+//     res.json(user);
+//   } catch (err) {
+//     res.status(400).json({ message: err.message });
+//   }
+// };
+
+// exports.deleteUser = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const user = await User.findByIdAndDelete(id);
+//     if (!user) return res.status(404).json({ message: 'User not found' });
+    
+//     res.json({ message: 'User deleted successfully' });
+//   } catch (err) {
+//     res.status(400).json({ message: err.message });
+//   }
+// };
+
+exports.deleteUser = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const user = await User.findByIdAndDelete(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json({ message: 'User deleted successfully' });
+  } catch (err) {
+    console.error('Error in deleteUser:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+}
+exports.updateUser = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const updates = req.body;
+
+    // Validate role if provided
+    if (updates.role && !['admin', 'staff', 'restaurant'].includes(updates.role)) {
+      return res.status(400).json({ message: 'Invalid role' });
+    }
+
+    // If updating department, ensure it's an array of objects for staff
+    if (updates.department && Array.isArray(updates.department)) {
+      updates.department = updates.department.map(dep => ({
+        id: dep.id,
+        name: dep.name
+      }));
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(userId, updates, { new: true, runValidators: true }).select('-password');
+    
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.json(updatedUser);
+  } catch (err) {
+    console.error('Error in updateUser:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};

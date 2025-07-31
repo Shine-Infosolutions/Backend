@@ -47,7 +47,20 @@ const RestaurantOrderSchema = new mongoose.Schema({
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
-  }
+  },
+  transferHistory: [{
+    fromTable: String,
+    toTable: String,
+    reason: String,
+    transferredBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    transferredAt: {
+      type: Date,
+      default: Date.now
+    }
+  }]
 }, { timestamps: true });
 
 module.exports = mongoose.models.RestaurantOrder || mongoose.model('RestaurantOrder', RestaurantOrderSchema);

@@ -10,6 +10,7 @@ router.get('/invoice/:id', restaurantOrderController.generateInvoice);
 router.get('/all', restaurantOrderController.getAllOrders);
 router.post('/create', authMiddleware(['admin', 'staff', 'restaurant']), restaurantOrderController.createOrder);
 router.patch('/:id/add-items', authMiddleware(['admin', 'staff', 'restaurant']), restaurantOrderController.addItemsToOrder);
+router.patch('/:id/transfer-table', authMiddleware(['admin', 'staff', 'restaurant']), restaurantOrderController.transferTable);
 router.patch('/:id/status', authMiddleware(['admin', 'staff', 'restaurant']), restaurantOrderController.updateOrderStatus);
 
 

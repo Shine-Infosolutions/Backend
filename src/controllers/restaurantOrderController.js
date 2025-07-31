@@ -1,6 +1,7 @@
 const RestaurantOrder = require('../models/RestaurantOrder');
 const Item = require('../models/Items');
 const KOT = require('../models/KOT');
+const Bill = require('../models/Bill');
 
 // Generate KOT number
 const generateKOTNumber = async () => {
@@ -146,6 +147,49 @@ exports.addItemsToOrder = async (req, res) => {
     await additionalKot.save();
     
     res.json({ order, additionalKot });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// Transfer order to different table
+exports.transferTable = async (req, res) => {
+  try {
+    const { newTableNo, reason } = req.body;
+    const order = await RestaurantOrder.findById(req.params.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    
+    const oldTableNo = order.tableNo;
+    
+    // Update order table number
+    order.tableNo = newTableNo;
+    order.transferHistory = order.transferHistory || [];
+    order.transferHistory.push({
+      fromTable: oldTableNo,
+      toTable: newTableNo,
+      reason: reason || 'Customer request',
+      transferredBy: req.user?.id || req.user?._id,
+      transferredAt: new Date()
+    });
+    
+    await order.save();
+    
+    // Update all related KOTs
+    await KOT.updateMany(
+      { orderId: order._id },
+      { tableNo: newTableNo }
+    );
+    
+    // Update bill if exists
+    await Bill.updateMany(
+      { orderId: order._id },
+      { tableNo: newTableNo }
+    );
+    
+    res.json({ 
+      message: `Order transferred from Table ${oldTableNo} to Table ${newTableNo}`,
+      order 
+    });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
