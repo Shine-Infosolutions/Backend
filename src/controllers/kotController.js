@@ -1,6 +1,7 @@
 const KOT = require('../models/KOT');
 const RestaurantOrder = require('../models/RestaurantOrder');
 const Item = require('../models/Items');
+const Notification = require('../models/Notification');
 
 // Generate KOT number
 const generateKOTNumber = async () => {
@@ -84,6 +85,23 @@ exports.updateKOTStatus = async (req, res) => {
     const kot = await KOT.findByIdAndUpdate(req.params.id, updates, { new: true });
     if (!kot) return res.status(404).json({ error: 'KOT not found' });
     
+    // Send notification when order is marked as served
+    if (status === 'served') {
+      const order = await RestaurantOrder.findById(kot.orderId).populate('createdBy');
+      
+      if (order && order.createdBy) {
+        const notification = new Notification({
+          recipient: order.createdBy._id,
+          message: `Order for Table ${kot.tableNo} is ready for serving`,
+          type: 'order_ready',
+          orderId: kot.orderId,
+          kotId: kot._id,
+          tableNo: kot.tableNo
+        });
+        await notification.save();
+      }
+    }
+    
     res.json(kot);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -102,5 +120,37 @@ exports.getKOTById = async (req, res) => {
     res.json(kot);
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+};
+
+// Create KOT automatically when order is created
+exports.createKOTFromOrder = async (orderId) => {
+  try {
+    const order = await RestaurantOrder.findById(orderId).populate('items.itemId');
+    if (!order) return null;
+    
+    const kotNumber = await generateKOTNumber();
+    
+    const kotItems = order.items.map(item => ({
+      itemId: item.itemId._id,
+      itemName: item.itemId.name,
+      quantity: item.quantity,
+      specialInstructions: ''
+    }));
+    
+    const kot = new KOT({
+      orderId: order._id,
+      kotNumber,
+      tableNo: order.tableNo,
+      items: kotItems,
+      priority: 'normal',
+      createdBy: order.createdBy
+    });
+    
+    await kot.save();
+    return kot;
+  } catch (error) {
+    console.error('Error creating KOT from order:', error);
+    return null;
   }
 };

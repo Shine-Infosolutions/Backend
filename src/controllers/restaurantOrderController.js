@@ -20,7 +20,7 @@ const generateKOTNumber = async () => {
 exports.createOrder = async (req, res) => {
   try {
     // Automatically set createdBy from authenticated user
-    const orderData = { ...req.body, createdBy: req.user?._id };
+    const orderData = { ...req.body, createdBy: req.user?.id };
     const order = new RestaurantOrder(orderData);
     await order.save();
     
@@ -40,7 +40,7 @@ exports.createOrder = async (req, res) => {
       kotNumber,
       tableNo: order.tableNo,
       items: kotItems,
-      createdBy: req.user?._id
+      createdBy: req.user?.id
     });
     await kot.save();
     
@@ -142,7 +142,7 @@ exports.addItemsToOrder = async (req, res) => {
       kotNumber,
       tableNo: order.tableNo,
       items: kotItems,
-      createdBy: req.user?._id
+      createdBy: req.user?.id
     });
     await additionalKot.save();
     
