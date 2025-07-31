@@ -187,64 +187,81 @@ exports.updateRoomStatus = async (req, res) => {
   }
 };
 
-// Get all available rooms
+// ✅ Get rooms available between checkInDate and checkOutDate
 exports.getAvailableRooms = async (req, res) => {
   try {
-    const rooms = await Room.find({ status: 'available' }).populate('category');
-    
-    // Group by category for easier frontend display
-    const groupedByCategory = {};
-    
-    // Add uncategorized group for rooms without a category
-    const uncategorizedId = 'uncategorized';
-    groupedByCategory[uncategorizedId] = {
-      categoryId: uncategorizedId,
-      categoryName: 'Uncategorized',
-      rooms: []
-    };
-    
-    rooms.forEach(room => {
-      if (!room.category) {
-        // Add to uncategorized group
-        groupedByCategory[uncategorizedId].rooms.push({
-          _id: room._id,
-          title: room.title,
-          room_number: room.room_number,
-          price: room.price,
-          description: room.description
-        });
-        return;
-      }
-      
-      const categoryId = room.category._id.toString();
-      const categoryName = room.category.name;
-      
-      if (!groupedByCategory[categoryId]) {
-        groupedByCategory[categoryId] = {
-          categoryId,
-          categoryName,
-          rooms: []
+    const { checkInDate, checkOutDate } = req.query;
+
+    if (!checkInDate || !checkOutDate) {
+      return res.status(400).json({
+        success: false,
+        message: "checkInDate and checkOutDate are required",
+      });
+    }
+
+    const checkIn = new Date(checkInDate);
+    const checkOut = new Date(checkOutDate);
+
+    if (isNaN(checkIn.getTime()) || isNaN(checkOut.getTime())) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid date format" });
+    }
+
+    // Step 1: Find overlapping bookings (rooms that are NOT available)
+    const overlappingBookings = await Booking.find({
+      isActive: true,
+      $or: [
+        {
+          checkInDate: { $lt: checkOut },
+          checkOutDate: { $gt: checkIn },
+        },
+      ],
+    });
+
+    // Step 2: Extract roomNumbers from those bookings
+    const bookedRoomNumbers = overlappingBookings.map(
+      (booking) => booking.roomNumber
+    );
+
+    // Step 3: Find rooms not in that list
+    const availableRooms = await Room.find({
+      room_number: { $nin: bookedRoomNumbers },
+    }).populate("category", "name");
+
+    // Step 4: Group by category
+    const grouped = {};
+
+    availableRooms.forEach((room) => {
+      const catId = room.category?._id?.toString() || "uncategorized";
+      const catName = room.category?.name || "Uncategorized";
+
+      if (!grouped[catId]) {
+        grouped[catId] = {
+          category: catId,
+          categoryName: catName,
+          rooms: [],
         };
       }
-      
-      groupedByCategory[categoryId].rooms.push({
+
+      grouped[catId].rooms.push({
         _id: room._id,
         title: room.title,
         room_number: room.room_number,
         price: room.price,
-        description: room.description
+        description: room.description,
+        status: room.status,
       });
     });
-    
-    // Remove empty categories
-    const filteredCategories = Object.values(groupedByCategory).filter(category => category.rooms.length > 0);
-    
-    res.json({
+
+    return res.json({
       success: true,
-      availableRooms: filteredCategories,
-      totalCount: rooms.length
+      availableRooms: Object.values(grouped),
+      totalCount: availableRooms.length,
     });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    console.error("Error in getAvailableRooms:", err);
+    return res.status(500).json({ success: false, message: err.message });
   }
 };
+

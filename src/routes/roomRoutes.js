@@ -7,6 +7,9 @@ const authMiddleware = require('../middleware/authMiddleware');
 router.post('/add', authMiddleware(['admin']), roomController.createRoom);
 // Get all rooms
 router.get('/all', roomController.getRooms);
+//get available rooms by date range
+router.get('/available', roomController.getAvailableRooms);
+
 // Get a room by ID
 router.get('/get/:id', roomController.getRoomById);
 // Update a room (admin or housekeeping staff)
