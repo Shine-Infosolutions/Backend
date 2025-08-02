@@ -17,7 +17,10 @@ const cabBookingSchema = new mongoose.Schema({
     enum: ['inhouse', 'external'],
     default: 'inhouse',
   },
-
+  bookingId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Booking'
+  },  
   // Ride Details
   pickupLocation: {
     type: String,

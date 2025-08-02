@@ -25,12 +25,15 @@ const kotRoutes = require('./src/routes/kotRoutes');
 const billRoutes = require('./src/routes/billRoutes');
 const searchRoutes = require('./src/routes/searchRoutes');
 const notificationRoutes = require('./src/routes/notificationRoutes');
+const invoiceRoutes = require('./src/routes/invoiceRoutes.js');
 const path = require('path');
 // Initialize express app
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: '*'
+}));
 app.use(express.json({ limit: '50mb' }));
 
 // Serve uploaded files for fallback method
@@ -102,6 +105,8 @@ app.use('/api/kot', kotRoutes);
 app.use('/api/bills', billRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/invoices', invoiceRoutes);
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ 
