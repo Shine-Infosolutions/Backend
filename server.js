@@ -32,7 +32,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: '*'
+  origin: '*', // Allow all origins for development
 }));
 app.use(express.json({ limit: '50mb' }));
 
