@@ -24,6 +24,7 @@ const restaurantOrderRoutes = require('./src/routes/restaurantOrderRoutes');
 const kotRoutes = require('./src/routes/kotRoutes');
 const billRoutes = require('./src/routes/billRoutes');
 const searchRoutes = require('./src/routes/searchRoutes');
+const paginationRoutes = require('./src/routes/paginationRoutes');
 const notificationRoutes = require('./src/routes/notificationRoutes');
 const invoiceRoutes = require('./src/routes/invoiceRoutes.js');
 const path = require('path');
@@ -118,6 +119,7 @@ app.use('/api/restaurant-orders', restaurantOrderRoutes);
 app.use('/api/kot', kotRoutes);
 app.use('/api/bills', billRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/paginate', paginationRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/invoices', invoiceRoutes);
 
