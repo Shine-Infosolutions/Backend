@@ -8,7 +8,7 @@ const authMiddleware = require("../middleware/authMiddleware");
 router.post('/',  authMiddleware(["admin", "staff"], ["reception"]), controller.createReservation);
 router.get('/',  authMiddleware(["admin", "staff"], ["reception"]), controller.getAllReservations);
 router.get('/:id',  authMiddleware(["admin", "staff"], ["reception"]), controller.getReservationById);
-router.get('/grc/:grcNo',  authMiddleware(["admin", "staff"], ["reception"]), controller.getReservationByGRC);
+router.get('/grc/:id',  authMiddleware(["admin", "staff"], ["reception"]), controller.getReservationByGRC);
 router.put('/:id',  authMiddleware(["admin", "staff"], ["reception"]), controller.updateReservation);
 router.patch('/:id/cancel',  authMiddleware(["admin", "staff"], ["reception"]), controller.cancelReservation);
 router.patch('/:id/no-show',  authMiddleware(["admin", "staff"], ["reception"]), controller.markNoShow);
