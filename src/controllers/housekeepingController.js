@@ -1,6 +1,242 @@
 const Housekeeping = require('../models/Housekeeping');
 const User = require('../models/User.js');
 const Room = require('../models/Room');
+const RoomInspection = require('../models/RoomInspection');
+const Inventory = require('../models/Inventory');
+const InventoryTransaction = require('../models/InventoryTransaction');
+const Invoice = require('../models/Invoice'); 
+const RoomInventory = require('../models/RoomInventory');
+const Booking = require('../models/Booking');
+
+
+// 🔹 GET Checklist by RoomId (Auto-fill from RoomInventory)
+exports.getChecklistByRoom = async (req, res) => {
+  try {
+    const roomId = req.params.roomId;
+    const roomInventory = await RoomInventory.find({ roomId }).populate('inventoryId');
+
+    const checklist = roomInventory.map(item => ({
+      item: item.inventoryId.name,
+      inventoryId: item.inventoryId._id,
+      quantity: item.quantity,
+      status: 'ok',
+      remarks: ''
+    }));
+
+    res.json({ checklist });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// 🔹 POST Inspection Submission
+exports.createRoomInspection = async (req, res) => {
+  try {
+    const { roomId, bookingId, inspectedBy, inspectionType, checklist } = req.body;
+
+    let totalCharges = 0;
+    let invoiceItems = [];
+    if (Inventory.currentStock <= 0) {
+      console.warn(`Inventory ${Inventory.name} already out of stock`);
+    }
+    
+    for (const item of checklist) {
+      if (item.status !== 'ok') {
+        const inventory = await Inventory.findById(item.inventoryId);
+        const price = inventory.costPerUnit || 0;
+        const amount = price * item.quantity;
+        totalCharges += amount;
+
+        invoiceItems.push({
+          itemName: inventory.name,
+          inventoryId: inventory._id,
+          quantity: item.quantity,
+          price,
+          amount,
+          status: item.status,
+          remarks: item.remarks || ''
+        });
+
+        // Inventory deduction
+        if (['missing', 'used'].includes(item.status)) {
+          const previousStock = inventory.currentStock;
+          inventory.currentStock -= item.quantity;
+          await inventory.save();
+
+          await InventoryTransaction.create({
+            inventoryId: inventory._id,
+            quantityChanged: -item.quantity,
+            previousStock,
+            newStock: inventory.currentStock,
+            reason: `Room inspection - ${item.status}`,
+            reference: bookingId
+          });
+        }
+      }
+    }
+
+    // Save RoomInspection
+    const inspection = await RoomInspection.create({
+      roomId,
+      bookingId,
+      inspectedBy,
+      inspectionType,
+     totalCharges,
+      checklist
+    });
+
+    // Create Invoice if there are charges
+    if (invoiceItems.length > 0) {
+      const invoiceNumber = await generateInvoiceNumber();
+      await Invoice.create({
+        serviceType: 'Housekeeping',
+        serviceRefId: inspection._id,
+        invoiceNumber,
+        bookingId,
+        items: invoiceItems.map(i => ({
+          description: `${i.itemName} (${i.status})`,
+          amount: i.amount
+        })),
+        subTotal: totalCharges,
+        tax: 0,
+        discount: 0,
+        totalAmount: totalCharges,
+        status: 'Unpaid'
+      });
+    }
+
+    res.json({
+      message: "Inspection recorded successfully",
+      totalCharges,
+      invoiceItems,
+      data: inspection
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.updateRoomInspection = async (req, res) => {
+  try {
+    const { inspectionId } = req.params;
+    const { checklist, inspectedBy } = req.body;
+
+    const inspection = await RoomInspection.findById(inspectionId);
+    if (!inspection) {
+      return res.status(404).json({ message: 'RoomInspection not found' });
+    }
+
+    let totalCharges = 0;
+
+    for (const updatedItem of checklist) {
+      const index = inspection.checklist.findIndex(
+        (i) => i.inventoryId?.toString() === updatedItem.inventoryId
+      );
+
+      if (index === -1) continue;
+
+      // Update checklist item
+      inspection.checklist[index].status = updatedItem.status;
+      inspection.checklist[index].quantity = updatedItem.quantity || 1;
+      inspection.checklist[index].remarks = updatedItem.remarks || '';
+
+      // Get inventory details
+      const inventory = await Inventory.findById(updatedItem.inventoryId);
+      if (!inventory) continue;
+
+      let cost = 0;
+
+      if (['missing', 'damaged', 'used'].includes(updatedItem.status)) {
+        const quantity = updatedItem.quantity || 1;
+
+        // Calculate cost
+        cost = quantity * inventory.costPerUnit;
+        totalCharges += cost;
+
+        // Update Inventory stock safely
+        const previousStock = inventory.currentStock;
+        const newStock = Math.max(0, previousStock - quantity);
+        inventory.currentStock = newStock;
+        await inventory.save();
+
+        // ✅ FIX: Add required `quantity` field
+        await InventoryTransaction.create({
+          inventoryId: inventory._id,
+          transactionType: updatedItem.status,
+          quantity: quantity, // ✅ required field
+          quantityChanged: -quantity, // optional, if you want to track difference
+          previousStock,
+          newStock,
+          roomId: inspection.roomId,
+          userId: inspectedBy || inspection.inspectedBy,
+          notes: 'Updated via RoomInspection edit',
+          cost
+        });
+
+        // Update RoomInventory status
+        await RoomInventory.updateOne(
+          {
+            roomId: inspection.roomId,
+            inventoryId: inventory._id
+          },
+          {
+            $set: {
+              status: updatedItem.status,
+              remarks: updatedItem.remarks || '',
+              userId: inspectedBy || inspection.inspectedBy
+            }
+          }
+        );
+
+        // Save costPerUnit to checklist (if not already saved)
+        inspection.checklist[index].costPerUnit = inventory.costPerUnit;
+      }
+    }
+
+    // Update totalCharges
+    inspection.totalCharges = totalCharges;
+    await inspection.save();
+
+    // Update existing Invoice if found
+    const invoice = await Invoice.findOne({
+      serviceType: 'RoomInspection',
+      serviceRefId: inspection._id
+    });
+
+    if (invoice) {
+      invoice.items = inspection.checklist
+        .filter(i => ['missing', 'damaged', 'used'].includes(i.status))
+        .map(i => ({
+          description: `${i.item} (${i.status})`,
+          amount: i.quantity * (i.costPerUnit || 0)
+        }));
+
+      invoice.subTotal = totalCharges;
+      invoice.totalAmount = totalCharges;
+      invoice.tax = 0;
+      invoice.discount = 0;
+      await invoice.save();
+    }
+
+    return res.status(200).json({ message: 'RoomInspection updated', inspection });
+
+  } catch (error) {
+    console.error('Error updating RoomInspection:', error);
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// 🔹 Helper
+const generateInvoiceNumber = async () => {
+  let invoiceNumber, exists = true;
+  while (exists) {
+    const rand = Math.floor(10000 + Math.random() * 90000);
+    invoiceNumber = `INV-${rand}`;
+    exists = await Invoice.findOne({ invoiceNumber });
+  }
+  return invoiceNumber;
+};
 
 // Create a new housekeeping task
 exports.createTask = async (req, res) => {
