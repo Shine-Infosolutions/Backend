@@ -35,6 +35,7 @@ const app = express();
 const allowedOrigins = [
   "http://localhost:5173",
   "https://backend-hazel-xi.vercel.app",
+  "https://buddha-crm.vercel.app",
 ];
 app.use(
   cors({
