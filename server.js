@@ -26,6 +26,7 @@ const billRoutes = require('./src/routes/billRoutes');
 const searchRoutes = require('./src/routes/searchRoutes');
 const notificationRoutes = require('./src/routes/notificationRoutes');
 const invoiceRoutes = require('./src/routes/invoiceRoutes.js');
+const roomInventoryRoutes = require('./src/routes/roomInventoryRoutes.js');
 const path = require('path');
 // Initialize express app
 const app = express();
@@ -120,6 +121,7 @@ app.use('/api/bills', billRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/invoices', invoiceRoutes);
+app.use('/api/room-inventory', roomInventoryRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

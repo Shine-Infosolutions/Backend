@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const invoiceSchema = new mongoose.Schema({
   serviceType: {
     type: String,
-    enum: ['Booking', 'Reservation', 'CabBooking', 'Restaurant', 'Room'],
+    enum: ['Booking', 'Reservation', 'CabBooking', 'Room', 'Housekeeping','RoomInspection'],
     required: true
   },
   serviceRefId: {
