@@ -123,8 +123,40 @@ exports.getStaffProfile = async (req, res) => {
 
 exports.getAllUsers = async (req, res) => {
   try {
-    const users = await User.find().select('-password').sort({ createdAt: -1 });
-    res.json(users);
+    const { page = 1, limit = 15 } = req.query;
+    
+    // Inline pagination functions
+    const paginate = (query, page, limit) => {
+      const pageNum = parseInt(page);
+      const limitNum = parseInt(limit);
+      const skip = (pageNum - 1) * limitNum;
+      return query.skip(skip).limit(limitNum);
+    };
+    
+    const getPaginationMeta = async (model, filter, page, limit) => {
+      const pageNum = parseInt(page);
+      const limitNum = parseInt(limit);
+      const total = await model.countDocuments(filter);
+      const totalPages = Math.ceil(total / limitNum);
+      
+      return {
+        currentPage: pageNum,
+        totalPages,
+        totalItems: total,
+        itemsPerPage: limitNum,
+        hasNextPage: pageNum < totalPages,
+        hasPrevPage: pageNum > 1
+      };
+    };
+    
+    const query = User.find().select('-password').sort({ createdAt: -1 });
+    const users = await paginate(query, page, limit);
+    const pagination = await getPaginationMeta(User, {}, page, limit);
+    
+    res.json({
+      users,
+      pagination
+    });
   } catch (err) {
     console.error('Error in getAllUsers:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
