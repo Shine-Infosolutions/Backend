@@ -31,7 +31,8 @@ const serviceModels = {
 
 exports.createInvoice = async (req, res) => {
   try {
-    const { serviceType, serviceRefId, tax = 0, discount = 0, paymentMode } = req.body;
+    let { serviceType, serviceRefId, tax = 0, paymentMode } = req.body;
+    let discount = req.body.discount || 0; // mutable discount
 
     if (!serviceType || !serviceRefId) {
       return res.status(400).json({ error: 'serviceType and serviceRefId are required' });
@@ -53,44 +54,58 @@ exports.createInvoice = async (req, res) => {
 
     // ===== Booking Charges =====
     if (serviceType === 'Booking') {
-      const { checkInDate, checkOutDate, rate = 0 } = serviceDoc;
+      const { checkInDate, checkOutDate, rate = 0, discountPercent = 0, discountRoomSource = 0 } = serviceDoc;
+
       const checkIn = new Date(checkInDate);
       const checkOut = new Date(checkOutDate);
       const diffTime = Math.abs(checkOut - checkIn);
       const numberOfNights = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
 
       const roomCharge = numberOfNights * rate;
+
+      // Calculate discounts
+      const percentDiscount = discountPercent > 0 ? (roomCharge * (discountPercent / 100)) : 0;
+      const flatDiscount = discountRoomSource || 0;
+      const totalDiscount = percentDiscount + flatDiscount;
+
+      // Add room charges
       items.push({
         description: `Room Charges (${numberOfNights} Night${numberOfNights > 1 ? 's' : ''})`,
         amount: roomCharge
       });
-      subTotal = roomCharge;
-    }
 
-    // // ===== Housekeeping Charges =====
-    // else if (serviceType === 'Housekeeping') {
-    //   const tasks = serviceDoc.tasks || [];
-    //   items = tasks.map(task => ({
-    //     description: `${task.taskName} - ${task.notes || ''}`,
-    //     amount: task.cost || 0
-    //   }));
-    //   subTotal = items.reduce((sum, i) => sum + i.amount, 0);
-    // }
+      // Show discounts as negative line items
+      if (percentDiscount > 0) {
+        items.push({
+          description: `Discount (${discountPercent}%)`,
+          amount: -percentDiscount
+        });
+      }
+      if (flatDiscount > 0) {
+        items.push({
+          description: `Flat Discount`,
+          amount: -flatDiscount
+        });
+      }
+
+      subTotal = roomCharge;
+      discount = totalDiscount; // ✅ now works because discount is mutable
+    }
 
     // ===== Room Inspection Charges =====
     else if (serviceType === 'RoomInspection') {
       const inspectionItems = serviceDoc.checklist || [];
-    
-     // Map only damaged or non-OK items
-  items = inspectionItems
-  .filter(i => i.status && i.status.toLowerCase() !== 'ok')
-  .map(i => ({
-    description: `${i.itemName || i.name || 'Item'} (${i.status})`,
-    amount: i.cost || i.price || 0
-  }));
-    
+
+      // Map only damaged or non-OK items
+      items = inspectionItems
+        .filter(i => i.status && i.status.toLowerCase() !== 'ok')
+        .map(i => ({
+          description: `${i.item || i.itemName || i.name || 'Item'} (${i.status})`,
+          amount: i.cost || i.price || 0
+        }));
+
       subTotal = items.reduce((sum, i) => sum + i.amount, 0);
-    
+
       // fallback if subTotal still zero
       if (subTotal === 0 && serviceDoc.totalCharges) {
         items = [{
@@ -99,9 +114,9 @@ exports.createInvoice = async (req, res) => {
         }];
         subTotal = serviceDoc.totalCharges;
       }
-    }    
+    }
 
-    // ===== Other Services (Cab, Restaurant, etc.) =====
+    // ===== Other Services =====
     else if (req.body.items && Array.isArray(req.body.items)) {
       items = req.body.items;
       subTotal = items.reduce((acc, item) => acc + item.amount, 0);
@@ -131,7 +146,7 @@ exports.createInvoice = async (req, res) => {
 
     await invoice.save();
 
-    // 🔄 OPTIONAL: Automatically update payment module
+    // 🔄 Link invoice to booking if needed
     if (serviceType === 'Booking') {
       await Booking.findByIdAndUpdate(bookingId, { invoiceId: invoice._id });
     }
