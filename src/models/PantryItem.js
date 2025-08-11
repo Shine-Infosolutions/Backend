@@ -1,69 +1,37 @@
 const mongoose = require('mongoose');
 
-const pantryItemSchema = new mongoose.Schema({
+const PantryItemSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: true,
-    trim: true
+    required: true
   },
   category: {
     type: String,
-    required: true,
-    enum: ['food', 'beverage', 'spices', 'dairy', 'frozen', 'dry-goods', 'other']
+    required: true
   },
-  currentStock: {
+  price: {
     type: Number,
-    required: true,
-    min: 0,
+    required: true
+  },
+  description: {
+    type: String
+  },
+  isAvailable: {
+    type: Boolean,
+    default: true
+  },
+  stockQuantity: {
+    type: Number,
     default: 0
+  },
+  minStockLevel: {
+    type: Number,
+    default: 5
   },
   unit: {
     type: String,
-    required: true,
-    enum: ['kg', 'liter', 'piece', 'pack', 'bottle', 'box', 'bag']
-  },
-  minThreshold: {
-    type: Number,
-    required: true,
-    min: 0
-  },
-  reorderQuantity: {
-    type: Number,
-    required: true,
-    min: 1
-  },
-  costPerUnit: {
-    type: Number,
-    required: true,
-    min: 0
-  },
-  location: {
-    type: String,
-    default: 'Main Pantry'
-  },
-  isLowStock: {
-    type: Boolean,
-    default: false
-  },
-  autoReorder: {
-    type: Boolean,
-    default: false
-  },
-  supplier: {
-    name: String,
-    contactPerson: String,
-    phone: String,
-    email: String
-  },
-  notes: String
-}, {
-  timestamps: true
-});
+    default: 'piece'
+  }
+}, { timestamps: true });
 
-// Update isLowStock before saving
-pantryItemSchema.pre('save', function(next) {
-  this.isLowStock = this.currentStock <= this.minThreshold;
-  next();
-});
-
-module.exports = mongoose.model('PantryItem', pantryItemSchema);
+module.exports = mongoose.models.PantryItem || mongoose.model('PantryItem', PantryItemSchema);
