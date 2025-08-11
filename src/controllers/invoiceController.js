@@ -6,6 +6,7 @@ const Reservation = require('../models/Reservation');
 const CabBooking = require('../models/cabBooking');
 const RestaurantOrder = require('../models/RestaurantOrder');
 const Room = require('../models/Room'); 
+const RoomInspection = require('../models/RoomInspection');
 // 🧮 Generate unique invoice number
 const generateInvoiceNumber = async () => {
   let invoiceNumber, exists = true;
@@ -22,7 +23,8 @@ const serviceModels = {
   Reservation,
   CabBooking,
   RestaurantOrder,
-  Room
+  Room,
+  Housekeeping: RoomInspection
 };
 
 exports.createInvoice = async (req, res) => {

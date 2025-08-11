@@ -3,6 +3,7 @@ const router = express.Router();
 const housekeepingController = require('../controllers/housekeepingController');
 const uploadController = require('../controllers/uploadController');
 const authMiddleware = require('../middleware/authMiddleware');
+
 // const upload = require('../middleware/uploadMiddleware');
 
 // Create a new housekeeping task (admin or staff from reception/housekeeping)
@@ -33,6 +34,9 @@ router.get(
   housekeepingController.getStaffTasks
 );
 
+//get incep check
+router.get('/roominspection/:roomId', housekeepingController.getChecklistByRoom);
+
 // Update task status
 router.patch(
   '/tasks/:taskId/status',
@@ -47,12 +51,16 @@ router.put(
   housekeepingController.assignTask
 );
 
+router.put('/room/:inspectionId', housekeepingController.updateRoomInspection);
+
 // Report issue with room
 router.post(
   '/tasks/:taskId/issues',
   authMiddleware(['admin', 'staff'], ['housekeeping']),
   housekeepingController.reportIssue
 );
+// POST: Create a new inspection (minibar or floor-checklist)
+router.post('/roominspection', housekeepingController.createRoomInspection);
 
 // Resolve reported issue
 router.put(

@@ -40,6 +40,12 @@ router.patch(
   pantryController.updatePantryStock
 );
 
+router.get(
+  '/invoice/low-stock',
+  authMiddleware(['admin', 'staff'], ['pantry']),
+  pantryController.generateLowStockInvoice
+);
+
 // Pantry Orders Routes
 router.get(
   '/orders',
