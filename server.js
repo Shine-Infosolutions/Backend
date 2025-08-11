@@ -27,6 +27,7 @@ const searchRoutes = require('./src/routes/searchRoutes');
 const paginationRoutes = require('./src/routes/paginationRoutes');
 const notificationRoutes = require('./src/routes/notificationRoutes');
 const invoiceRoutes = require('./src/routes/invoiceRoutes.js');
+const roomInventoryRoutes = require('./src/routes/roomInventoryRoutes.js');
 const path = require('path');
 // Initialize express app
 const app = express();
@@ -35,6 +36,7 @@ const app = express();
 const allowedOrigins = [
   "http://localhost:5173",
   "https://backend-hazel-xi.vercel.app",
+  "https://buddha-crm.vercel.app",
 ];
 app.use(
   cors({
@@ -122,6 +124,7 @@ app.use('/api/search', searchRoutes);
 app.use('/api/paginate', paginationRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/invoices', invoiceRoutes);
+app.use('/api/room-inventory', roomInventoryRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
