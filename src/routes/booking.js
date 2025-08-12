@@ -58,4 +58,16 @@ router.post(
   bookingController.extendBooking
 );
 
+// ✅ Checkout booking (admin or staff from 'reception')
+router.post(
+  "/checkout/:bookingId",
+  bookingController.checkoutBooking
+);
+
+// ✅ Get booking history with invoices
+router.get(
+  "/history/all",
+  bookingController.getBookingHistory
+);
+
 module.exports = router;

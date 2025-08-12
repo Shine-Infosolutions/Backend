@@ -16,4 +16,10 @@ router.get('/all', getAllInvoices);    // ✅ Function hona chahiye
 // GET /api/invoices/final/:bookingId
 router.get('/final/:bookingId', getFinalInvoiceByBooking); // ✅ Function hona chahiye
 
+// GET /api/invoices/booking/:bookingId
+router.get('/booking/:bookingId', getFinalInvoiceByBooking);
+
+// POST /api/invoices/:invoiceId/payment
+router.post('/:invoiceId/payment', require('../controllers/invoiceController').processPayment);
+
 module.exports = router;
