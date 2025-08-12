@@ -98,29 +98,15 @@ router.get(
   housekeepingController.getAvailableStaff
 );
 
-// Upload before cleaning images
+// Upload images (Base64)
 router.post(
   '/tasks/:taskId/images/before',
-  authMiddleware(['admin', 'staff']), // Allow any staff or admin to upload images
-  housekeepingController.uploadBeforeImages
-);
-
-// Upload after cleaning images
-router.post(
-  '/tasks/:taskId/images/after',
-  authMiddleware(['admin', 'staff']), // Allow any staff or admin to upload images
-  housekeepingController.uploadAfterImages
-);
-
-// Base64 fallback routes for CORS issues
-router.post(
-  '/tasks/:taskId/images/before/base64',
   authMiddleware(['admin', 'staff']),
   uploadController.uploadBase64Images
 );
 
 router.post(
-  '/tasks/:taskId/images/after/base64',
+  '/tasks/:taskId/images/after',
   authMiddleware(['admin', 'staff']),
   uploadController.uploadBase64Images
 );
