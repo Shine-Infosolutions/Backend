@@ -7,7 +7,7 @@ const InventorySchema = new mongoose.Schema({
   },
   category: { 
     type: String, 
-    enum: ['amenity', 'cleaning', 'maintenance', 'food', 'beverage', 'linen', 'toiletry', 'other'],
+    enum: ['Amenity', 'Cleaning', 'Maintenance', 'Food', 'Beverage', 'Linen', 'Toiletry','Snakes','Other'],
     required: true
   },
   currentStock: { 
