@@ -36,11 +36,18 @@ router.get(
 
 //get incep check
 router.get('/roominspection/:roomId', housekeepingController.getChecklistByRoom);
+router.get('/checklist/:roomId', housekeepingController.getChecklistByRoom);
 
 // Update task status
 router.patch(
   '/tasks/:taskId/status',
   authMiddleware(['admin', 'staff'], ['housekeeping']), // Specifically allow housekeeping staff
+  housekeepingController.updateTaskStatus
+);
+
+router.put(
+  '/tasks/:taskId/status',
+  authMiddleware(['admin', 'staff'], ['housekeeping']),
   housekeepingController.updateTaskStatus
 );
 
@@ -61,6 +68,7 @@ router.post(
 );
 // POST: Create a new inspection (minibar or floor-checklist)
 router.post('/roominspection', housekeepingController.createRoomInspection);
+router.post('/room-inspection', housekeepingController.createRoomInspection);
 
 // Resolve reported issue
 router.put(

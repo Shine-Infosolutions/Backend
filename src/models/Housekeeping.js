@@ -8,7 +8,7 @@ const housekeepingSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'in-progress', 'completed', 'verified'],
+    enum: ['pending', 'in-progress', 'cleaning', 'completed', 'verified'],
     default: 'pending'
   },
   cleaningType: {

@@ -9,11 +9,27 @@ const RoomInventory = require('../models/RoomInventory');
 const Booking = require('../models/Booking');
 
 
-// 🔹 GET Checklist by RoomId (Auto-fill from RoomInventory)
+// 🔹 GET Checklist by RoomId (Auto-fill from RoomInventory or fallback to general inventory)
 exports.getChecklistByRoom = async (req, res) => {
   try {
     const roomId = req.params.roomId;
-    const roomInventory = await RoomInventory.find({ roomId }).populate('inventoryId');
+    let roomInventory = await RoomInventory.find({ roomId }).populate('inventoryId');
+
+    // If no room-specific inventory, use general inventory items
+    if (roomInventory.length === 0) {
+      const generalInventory = await Inventory.find({});
+      
+      const checklist = generalInventory.map(item => ({
+        item: item.name,
+        inventoryId: item._id,
+        quantity: 1,
+        status: 'ok',
+        remarks: '',
+        costPerUnit: item.costPerUnit
+      }));
+      
+      return res.json({ checklist });
+    }
 
     const checklist = roomInventory.map(item => ({
       item: item.inventoryId.name,
@@ -34,6 +50,17 @@ exports.createRoomInspection = async (req, res) => {
   try {
     const { roomId, bookingId, inspectedBy, inspectionType, checklist } = req.body;
 
+    // Validate required fields
+    if (!roomId) {
+      return res.status(400).json({ error: 'roomId is required' });
+    }
+    if (!inspectedBy) {
+      return res.status(400).json({ error: 'inspectedBy is required' });
+    }
+    if (!checklist || !Array.isArray(checklist)) {
+      return res.status(400).json({ error: 'checklist is required and must be an array' });
+    }
+
     let totalCharges = 0;
     let invoiceItems = [];
     if (Inventory.currentStock <= 0) {
@@ -42,36 +69,52 @@ exports.createRoomInspection = async (req, res) => {
     
     for (const item of checklist) {
       if (item.status !== 'ok') {
-        const inventory = await Inventory.findById(item.inventoryId);
-        const price = inventory.costPerUnit || 0;
+        let price = 0;
+        let itemName = item.item || 'Unknown Item';
+        
+        // Handle fallback items (no inventoryId)
+        if (item.inventoryId) {
+          const inventory = await Inventory.findById(item.inventoryId);
+          if (inventory) {
+            price = inventory.costPerUnit || 0;
+            itemName = inventory.name;
+            
+            // Inventory deduction for real inventory items
+            if (['missing', 'used'].includes(item.status)) {
+              const previousStock = inventory.currentStock;
+              inventory.currentStock -= item.quantity;
+              await inventory.save();
+
+              await InventoryTransaction.create({
+                inventoryId: inventory._id,
+                userId: inspectedBy,
+                quantity: item.quantity,
+                transactionType: item.status,
+                quantityChanged: -item.quantity,
+                previousStock,
+                newStock: inventory.currentStock,
+                reason: `Room inspection - ${item.status}`,
+                reference: bookingId
+              });
+            }
+          }
+        } else {
+          // Use fallback price for items without inventoryId
+          price = item.costPerUnit || 0;
+        }
+        
         const amount = price * item.quantity;
         totalCharges += amount;
 
         invoiceItems.push({
-          itemName: inventory.name,
-          inventoryId: inventory._id,
+          itemName,
+          inventoryId: item.inventoryId,
           quantity: item.quantity,
           price,
           amount,
           status: item.status,
           remarks: item.remarks || ''
         });
-
-        // Inventory deduction
-        if (['missing', 'used'].includes(item.status)) {
-          const previousStock = inventory.currentStock;
-          inventory.currentStock -= item.quantity;
-          await inventory.save();
-
-          await InventoryTransaction.create({
-            inventoryId: inventory._id,
-            quantityChanged: -item.quantity,
-            previousStock,
-            newStock: inventory.currentStock,
-            reason: `Room inspection - ${item.status}`,
-            reference: bookingId
-          });
-        }
       }
     }
 
@@ -101,6 +144,8 @@ exports.createRoomInspection = async (req, res) => {
         tax: 0,
         discount: 0,
         totalAmount: totalCharges,
+        paidAmount: 0,
+        balanceAmount: totalCharges,
         status: 'Unpaid'
       });
     }
@@ -352,8 +397,31 @@ exports.updateTaskStatus = async (req, res) => {
     task.status = status;
     if (notes) task.notes = notes;
     
+    // Handle issues (previously called damageItems)
+    if (req.body.issues && Array.isArray(req.body.issues)) {
+      task.issues = req.body.issues.map(description => ({
+        description,
+        resolved: false
+      }));
+      task.markModified('issues');
+    }
+    if (req.body.beforeImages && req.body.beforeImages.length > 0) {
+      if (!task.images) task.images = { before: [], after: [] };
+      task.images.before = req.body.beforeImages.map(url => ({ url, uploadedAt: new Date() }));
+      task.markModified('images');
+    }
+    if (req.body.afterImages && req.body.afterImages.length > 0) {
+      if (!task.images) task.images = { before: [], after: [] };
+      task.images.after = req.body.afterImages.map(url => ({ url, uploadedAt: new Date() }));
+      task.markModified('images');
+    }
+    
     if (status === 'in-progress' && !task.startTime) {
       task.startTime = new Date();
+    }
+    
+    if (status === 'cleaning' && !task.cleaningStartTime) {
+      task.cleaningStartTime = new Date();
     }
     
     if (status === 'completed' && !task.endTime) {
@@ -371,12 +439,8 @@ exports.updateTaskStatus = async (req, res) => {
       if (task.roomId) {
         const room = await Room.findById(task.roomId);
         if (room) {
-          console.log(`Updating room ${room.room_number} status from ${room.status} to available`);
           room.status = 'available';
           await room.save();
-          console.log(`Room status updated to: ${room.status}`);
-        } else {
-          console.log(`Room not found for task: ${task._id}`);
         }
       }
     }
@@ -386,7 +450,25 @@ exports.updateTaskStatus = async (req, res) => {
     }
     
     await task.save();
-    res.json({ success: true, task });
+    
+    // Force update issues if they were provided
+    if (req.body.issues && Array.isArray(req.body.issues)) {
+      const issuesData = req.body.issues.map(description => ({
+        description,
+        resolved: false
+      }));
+      await Housekeeping.findByIdAndUpdate(taskId, {
+        $set: { issues: issuesData }
+      });
+    }
+    
+    // Fetch the updated task to return
+    const updatedTask = await Housekeeping.findById(taskId)
+      .populate('roomId')
+      .populate('assignedTo', 'username')
+      .populate('verifiedBy', 'username');
+    
+    res.json({ success: true, task: updatedTask });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }

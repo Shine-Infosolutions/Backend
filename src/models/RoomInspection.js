@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const RoomInspectionSchema = new mongoose.Schema({
+const roomInspectionSchema = new mongoose.Schema({
   roomId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Room',
@@ -8,8 +8,7 @@ const RoomInspectionSchema = new mongoose.Schema({
   },
   bookingId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Booking',
-    required: true
+    ref: 'Booking'
   },
   inspectedBy: {
     type: mongoose.Schema.Types.ObjectId,
@@ -18,41 +17,44 @@ const RoomInspectionSchema = new mongoose.Schema({
   },
   inspectionType: {
     type: String,
-    enum: ['minibar', 'floor-checklist'],
-    required: true
+    enum: ['checkout', 'maintenance', 'regular', 'deep-clean'],
+    default: 'checkout'
   },
-  checklist: [
-    {
-      item: {
-        type: String,
-        required: true
-      },
-      inventoryId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'InventoryItem' 
-      },
-      status: {
-        type: String,
-        enum: ['ok', 'missing', 'damaged', 'refill-needed'],
-        default: 'ok'
-      },
-      quantity: {
-        type: Number,
-        default: 1
-      },
-      remarks: {
-        type: String
-      }
-    }
-  ],
+  checklist: [{
+    inventoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Inventory',
+      required: false
+    },
+    item: {
+      type: String,
+      required: true
+    },
+    quantity: {
+      type: Number,
+      default: 1
+    },
+    status: {
+      type: String,
+      enum: ['ok', 'missing', 'damaged', 'used'],
+      default: 'ok'
+    },
+    remarks: String,
+    costPerUnit: Number
+  }],
   totalCharges: {
     type: Number,
     default: 0
   },
-  createdAt: {
+  status: {
+    type: String,
+    enum: ['pending', 'completed'],
+    default: 'completed'
+  },
+  completedAt: {
     type: Date,
     default: Date.now
   }
-});
+}, { timestamps: true });
 
-module.exports = mongoose.models.RoomInspection || mongoose.model('RoomInspection', RoomInspectionSchema);
+module.exports = mongoose.model('RoomInspection', roomInspectionSchema);

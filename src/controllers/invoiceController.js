@@ -96,13 +96,18 @@ exports.createInvoice = async (req, res) => {
     else if (serviceType === 'RoomInspection') {
       const inspectionItems = serviceDoc.checklist || [];
 
-      // Map only damaged or non-OK items
+      // Map only damaged, missing, or used items
       items = inspectionItems
-        .filter(i => i.status && i.status.toLowerCase() !== 'ok')
-        .map(i => ({
-          description: `${i.item || i.itemName || i.name || 'Item'} (${i.status})`,
-          amount: i.cost || i.price || 0
-        }));
+        .filter(i => i.status && ['missing', 'damaged', 'used'].includes(i.status.toLowerCase()))
+        .map(i => {
+          const quantity = i.quantity || 1;
+          const costPerUnit = i.costPerUnit || 0;
+          const amount = quantity * costPerUnit;
+          return {
+            description: `${i.item || i.itemName || i.name || 'Item'} (${i.status}) - Qty: ${quantity}`,
+            amount: amount
+          };
+        });
 
       subTotal = items.reduce((sum, i) => sum + i.amount, 0);
 
@@ -113,6 +118,21 @@ exports.createInvoice = async (req, res) => {
           amount: serviceDoc.totalCharges
         }];
         subTotal = serviceDoc.totalCharges;
+      }
+    }
+
+    // ===== Housekeeping Charges =====
+    else if (serviceType === 'Housekeeping') {
+      // Handle housekeeping-related charges (room inspection items)
+      if (req.body.items && Array.isArray(req.body.items)) {
+        items = req.body.items;
+        subTotal = items.reduce((acc, item) => acc + item.amount, 0);
+      } else {
+        items = [{
+          description: 'Housekeeping Service',
+          amount: 0
+        }];
+        subTotal = 0;
       }
     }
 
@@ -173,17 +193,124 @@ exports.getFinalInvoiceByBooking = async (req, res) => {
   try {
     const { bookingId } = req.params;
 
-    const invoices = await Invoice.find({ bookingId }).populate('serviceRefId');
+    // Get booking details
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
 
-    const totalAmount = invoices.reduce((acc, invoice) => acc + invoice.totalAmount, 0);
+    // Get all invoices for this booking
+    const existingInvoices = await Invoice.find({ bookingId }).populate('serviceRefId');
+
+    // Calculate room charges
+    const { checkInDate, checkOutDate, rate = 0, discountPercent = 0, discountRoomSource = 0 } = booking;
+    const checkIn = new Date(checkInDate);
+    const checkOut = new Date(checkOutDate);
+    const diffTime = Math.abs(checkOut - checkIn);
+    const numberOfNights = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+    const roomCharge = numberOfNights * rate;
+    const percentDiscount = discountPercent > 0 ? (roomCharge * (discountPercent / 100)) : 0;
+    const flatDiscount = discountRoomSource || 0;
+    const totalDiscount = percentDiscount + flatDiscount;
+
+    // Start with room charges
+    let consolidatedItems = [{
+      description: `Room Charges (${numberOfNights} Night${numberOfNights > 1 ? 's' : ''})`,
+      amount: roomCharge
+    }];
+
+    // Add discounts
+    if (percentDiscount > 0) {
+      consolidatedItems.push({
+        description: `Discount (${discountPercent}%)`,
+        amount: -percentDiscount
+      });
+    }
+    if (flatDiscount > 0) {
+      consolidatedItems.push({
+        description: `Flat Discount`,
+        amount: -flatDiscount
+      });
+    }
+
+    // Add additional charges from other invoices
+    let additionalCharges = 0;
+    existingInvoices.forEach(invoice => {
+      if (invoice.serviceType !== 'Booking') {
+        invoice.items.forEach(item => {
+          consolidatedItems.push(item);
+          additionalCharges += item.amount;
+        });
+      }
+    });
+
+    const subTotal = roomCharge + additionalCharges;
+    const finalTotal = subTotal - totalDiscount;
+
+    // Create or update consolidated invoice
+    const invoiceNumber = await generateInvoiceNumber();
+    const consolidatedInvoice = {
+      serviceType: 'Booking',
+      serviceRefId: bookingId,
+      invoiceNumber,
+      items: consolidatedItems,
+      subTotal,
+      tax: 0,
+      discount: totalDiscount,
+      totalAmount: finalTotal,
+      status: 'Unpaid',
+      paidAmount: 0,
+      balanceAmount: finalTotal,
+      bookingId
+    };
 
     return res.status(200).json({
       success: true,
-      totalInvoiceCount: invoices.length,
-      grandTotal: totalAmount,
-      invoices
+      totalInvoiceCount: 1,
+      grandTotal: finalTotal,
+      invoices: [consolidatedInvoice]
     });
   } catch (error) {
     return res.status(500).json({ error: 'Something went wrong', message: error.message });
+  }
+};
+
+// Process payment for invoice
+exports.processPayment = async (req, res) => {
+  try {
+    const { invoiceId } = req.params;
+    const { amount, paymentMode } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'Valid payment amount is required' });
+    }
+
+    const invoice = await Invoice.findById(invoiceId);
+    if (!invoice) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+
+    const newPaidAmount = invoice.paidAmount + amount;
+    const newBalanceAmount = invoice.totalAmount - newPaidAmount;
+
+    if (newPaidAmount > invoice.totalAmount) {
+      return res.status(400).json({ error: 'Payment amount exceeds invoice total' });
+    }
+
+    invoice.paidAmount = newPaidAmount;
+    invoice.balanceAmount = newBalanceAmount;
+    invoice.paymentMode = paymentMode;
+    
+    if (newBalanceAmount === 0) {
+      invoice.status = 'Paid';
+    } else if (newPaidAmount > 0) {
+      invoice.status = 'Partial';
+    }
+
+    await invoice.save();
+
+    res.json({ success: true, invoice });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
