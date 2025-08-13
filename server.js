@@ -30,7 +30,6 @@ const invoiceRoutes = require('./src/routes/invoiceRoutes.js');
 const roomInventoryRoutes = require('./src/routes/roomInventoryRoutes.js');
 
 const paymentRoutes = require('./src/routes/paymentRoutes.js');
-const serviceRoutes = require('./src/routes/serviceRoutes.js');
 const path = require('path');
 // Initialize express app
 const app = express();
@@ -107,7 +106,6 @@ app.use('/api/invoices', invoiceRoutes);
 app.use('/api/room-inventory', roomInventoryRoutes);
 
 app.use('/api/payments', paymentRoutes);
-app.use('/api/services', serviceRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
