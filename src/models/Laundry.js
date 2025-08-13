@@ -1,13 +1,16 @@
+// models/Laundry.js
 const mongoose = require("mongoose");
-const laundryItemSchema = require("./LaundryItems");
 
 const laundrySchema = new mongoose.Schema({
   grcNo: String,
-
-  // References
   roomNumber: String,
-
-  // Department & requestor info
+  bookingId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Booking',
+    required: function () {
+      return this.itemType === 'guest'; // Only require for guest laundry
+    }
+  },  
   requestedByDept: {
     type: String,
     enum: ["frontdesk", "housekeeping", "kitchen", "guest", "other"],
@@ -15,31 +18,39 @@ const laundrySchema = new mongoose.Schema({
   },
   requestedByName: String,
 
-  // Items array
-  items: [laundryItemSchema],
-
-  // Laundry order meta
-  itemType: {
-    type: String,
-    enum: ["guest", "house", "uniform"],
-    required: true,
-  },
+  items: [
+    {
+      rateId: { type: mongoose.Schema.Types.ObjectId, ref: "LaundryRate", required: true },
+      itemName: String,
+      quantity: { type: Number, default: 1, min: 0 },
+      deliveredQuantity: { type: Number, default: 0, min: 0 },
+      status: {
+        type: String,
+        enum: [
+          "pending",
+          "picked_up",
+          "ready",
+          "delivered",
+          "cancelled"
+        ],
+        default: "pending",
+      },
+      calculatedAmount: { type: Number, required: true },
+      damageReported: { type: Boolean, default: false },
+      itemNotes: String,
+    }
+  ],
+  itemType: { type: String, enum: ["guest", "house", "uniform"], required: true },
   isUrgent: { type: Boolean, default: false },
   urgencyNote: String,
   specialInstructions: String,
 
-  // Job status and scheduling
   laundryStatus: {
     type: String,
-    enum: [
-      "pending",
-      "in_progress",
-      "partially_delivered",
-      "completed",
-      "cancelled",
-    ],
+    enum: ["pending", "in_progress", "partially_delivered", "completed", "cancelled"],
     default: "pending",
   },
+
   pickupTime: Date,
   deliveredTime: Date,
   scheduledPickupTime: Date,
@@ -48,7 +59,6 @@ const laundrySchema = new mongoose.Schema({
   deliveredBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   receivedBy: String,
 
-  // Damage/loss/lost-found flow
   damageReported: { type: Boolean, default: false },
   damageNotes: String,
   discardReason: String,
@@ -59,8 +69,9 @@ const laundrySchema = new mongoose.Schema({
   foundDate: Date,
   foundRemarks: String,
   lostDate: Date,
-  // Billing and offers (incl. comp/discount)
+
   isBillable: { type: Boolean, default: false },
+  totalAmount: { type: Number, required: true },
   isComplimentary: { type: Boolean, default: false },
   billStatus: {
     type: String,
@@ -72,5 +83,24 @@ const laundrySchema = new mongoose.Schema({
   isCancelled: { type: Boolean, default: false },
 
 }, { timestamps: true });
+
+// Auto-calc total + itemName
+laundrySchema.pre("save", async function (next) {
+  if (this.items?.length) {
+    let total = 0;
+    for (let item of this.items) {
+      if (item.rateId) {
+        const rateDoc = await mongoose.model("LaundryRate").findById(item.rateId);
+        if (rateDoc) {
+          if (!item.itemName) item.itemName = rateDoc.itemName; 
+          if (!item.calculatedAmount) item.calculatedAmount = rateDoc.rate * item.quantity;
+        }
+      }
+      total += item.calculatedAmount || 0;
+    }
+    this.totalAmount = total;
+  }
+  next();
+});
 
 module.exports = mongoose.model("Laundry", laundrySchema);

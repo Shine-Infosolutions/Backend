@@ -1,183 +1,261 @@
+// controllers/laundryController.js
 const Laundry = require("../models/Laundry");
+const LaundryRate = require("../models/LaundryRate");
+const Booking = require("../models/Booking");
+const mongoose = require("mongoose");
 
-// ✅ Create Laundry Order
+// — Create Laundry Order
 exports.createLaundryOrder = async (req, res) => {
   try {
-    const laundry = new Laundry(req.body);
-    await laundry.save();
-    res.status(201).json({ success: true, laundry });
-  } catch (error) {
-    res.status(400).json({ success: false, error: error.message });
+    const { bookingId, items, roomNumber } = req.body;
+
+    if (!bookingId || !items?.length) {
+      return res.status(400).json({ message: "Booking ID and items are required" });
+    }
+
+    // Auto-calculate item amounts from rateId
+    const populatedItems = await Promise.all(
+      items.map(async (item) => {
+        const rateDoc = await LaundryRate.findById(item.rateId);
+        if (!rateDoc) throw new Error(`Rate not found for ID: ${item.rateId}`);
+        return {
+          ...item,
+          calculatedAmount: rateDoc.rate * item.quantity,
+        };
+      })
+    );
+
+    const totalAmount = populatedItems.reduce((sum, i) => sum + i.calculatedAmount, 0);
+
+    const laundryOrder = await Laundry.create({
+      ...req.body,
+      items: populatedItems,
+      totalAmount,
+    });
+
+    res.status(201).json(laundryOrder);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 
-// ✅ Get All Laundry Orders (with optional `?urgent=true`)
+// — Get All Orders
 exports.getAllLaundryOrders = async (req, res) => {
   try {
     const filter = {};
-    if (req.query.urgent === 'true') {
-      filter.isUrgent = true;
-    }
-    const list = await Laundry.find(filter);
-    res.json({ success: true, laundry: list });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    if (req.query.urgent === "true") filter.isUrgent = true;
+
+    const orders = await Laundry.find(filter).populate("bookingId").populate("items.rateId");
+    res.json(orders);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 
-// ✅ Get Single Laundry by ID
+// — Get By ID
 exports.getLaundryById = async (req, res) => {
   try {
-    const order = await Laundry.findById(req.params.id);
-    if (!order) return res.status(404).json({ success: false, message: "Not found" });
-    res.json({ success: true, laundry: order });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    const order = await Laundry.findById(req.params.id).populate("bookingId").populate("items.rateId");
+    if (!order) return res.status(404).json({ message: "Laundry order not found" });
+    res.json(order);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 
-// ✅ Get Laundry by GRC number
-exports.getLaundryByGRC = async (req, res) => {
+// — Get Laundry by GRC No or Room Number
+exports.getLaundryByGRCOrRoom = async (req, res) => {
   try {
-    const orders = await Laundry.find({ grcNo: req.params.grcNo });
-    res.json({ success: true, laundry: orders });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-};
+    const { grcNo, roomNumber } = req.params;
 
-// ✅ Get Laundry by Room Number
-exports.getLaundryByRoom = async (req, res) => {
-  try {
-    const { roomNumber } = req.params;
-    const orders = await Laundry.find({ roomNumber });
-    res.json({ success: true, laundry: orders });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-};
-
-// ✅ Update entire laundry order
-exports.updateLaundryOrder = async (req, res) => {
-  try {
-    const updated = await Laundry.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
-    if (!updated) return res.status(404).json({ success: false, message: "Not found" });
-    res.json({ success: true, laundry: updated });
-  } catch (error) {
-    res.status(400).json({ success: false, error: error.message });
-  }
-};
-
-// ✅ Add new items to an existing laundry order
-exports.addItemsToLaundryOrder = async (req, res) => {
-  try {
-    const { newItems } = req.body;
-    if (!Array.isArray(newItems) || newItems.length === 0) {
-      return res.status(400).json({ success: false, message: "newItems array required" });
+    if (!grcNo && !roomNumber) {
+      return res.status(400).json({ message: "Please provide GRC No or Room Number" });
     }
 
-    const updated = await Laundry.findByIdAndUpdate(
-      req.params.id,
-      { $push: { items: { $each: newItems } } },
-      { new: true, runValidators: true }
-    );
+    const query = {};
+    if (grcNo) query.grcNo = grcNo;
+    if (roomNumber) query.roomNumber = roomNumber;
 
-    if (!updated) return res.status(404).json({ success: false, message: "Not found" });
-    res.json({ success: true, laundry: updated });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    const orders = await Laundry.find(query)
+      .populate("bookingId", "guestName checkInDate checkOutDate")
+      .populate("items.rateId");
+
+    res.json(orders);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 
-// ✅ Update status/notes of a single item
+
+// — Update single item status/notes
 exports.updateLaundryItemStatus = async (req, res) => {
   try {
-    const { laundryId, itemName } = req.params;
-    const updates = req.body; // e.g. { status, deliveredQuantity, itemNotes, damageReported }
+    const { status, itemNotes } = req.body;
+    const { laundryId, itemId } = req.params;
 
-    const laundry = await Laundry.findById(laundryId);
-    if (!laundry) return res.status(404).json({ success: false, message: "Order not found" });
+    const order = await Laundry.findById(laundryId);
+    if (!order) return res.status(404).json({ message: "Order not found" });
 
-    const item = laundry.items.find(i => i.itemName.toLowerCase() === itemName.toLowerCase());
-    if (!item) return res.status(404).json({ success: false, message: "Item not found" });
+    // items array me se itemId match kar ke item find karo
+    const item = order.items.id(itemId);
+    if (!item) return res.status(404).json({ message: "Item not found" });
 
-    Object.assign(item, updates);
-    await laundry.save();
+    if (status) item.status = status;
+    if (itemNotes) item.itemNotes = itemNotes;
 
-    res.json({ success: true, updatedItem: item });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    await order.save();
+    res.json(order);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 
-// ✅ Cancel Laundry Order
+// — Update Entire Order with recalculation
+exports.updateLaundryOrder = async (req, res) => {
+  try {
+    let updateData = { ...req.body };
+
+    // If items array is being updated, recalc all amounts
+    if (req.body.items && Array.isArray(req.body.items) && req.body.items.length > 0) {
+      // 1. Get all rate IDs from the incoming items
+      const rateIds = req.body.items.map(i => i.rateId);
+      
+      // 2. Fetch all rate docs in one query
+      const rates = await LaundryRate.find({ _id: { $in: rateIds } });
+      const rateMap = rates.reduce((acc, r) => {
+        acc[r._id.toString()] = r; // store whole doc for both rate + itemName
+        return acc;
+      }, {});
+      
+      // 3. Loop through items to recalc amounts and add itemName
+      let total = 0;
+      const recalculatedItems = req.body.items.map(i => {
+        const rateDoc = rateMap[i.rateId.toString()];
+        if (!rateDoc) {
+          throw new Error(`Rate not found for ID: ${i.rateId}`);
+        }
+        const calcAmount = rateDoc.rate * i.quantity;
+        total += calcAmount;
+        return {
+          ...i,
+          itemName: rateDoc.itemName, // lock name from rate table
+          calculatedAmount: calcAmount
+        };
+      });
+
+      updateData.items = recalculatedItems;
+      updateData.totalAmount = total;
+    }
+
+    const updatedOrder = await Laundry.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true, runValidators: true }
+    ).populate("items.rateId");
+
+    if (!updatedOrder) {
+      return res.status(404).json({ message: "Laundry order not found" });
+    }
+
+    res.json(updatedOrder);
+  } catch (err) {
+    console.error("Error updating laundry order:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+
+// — Add Items
+exports.addItemsToLaundryOrder = async (req, res) => {
+  try {
+    const { items } = req.body;
+    if (!items?.length) return res.status(400).json({ message: "Items are required" });
+
+    const laundryOrder = await Laundry.findById(req.params.id);
+    if (!laundryOrder) return res.status(404).json({ message: "Order not found" });
+
+    const newItems = await Promise.all(
+      items.map(async (item) => {
+        const rateDoc = await LaundryRate.findById(item.rateId);
+        if (!rateDoc) throw new Error(`Rate not found for ID: ${item.rateId}`);
+        return {
+          ...item,
+          calculatedAmount: rateDoc.rate * item.quantity,
+        };
+      })
+    );
+
+    laundryOrder.items.push(...newItems);
+    laundryOrder.totalAmount += newItems.reduce((sum, i) => sum + i.calculatedAmount, 0);
+    await laundryOrder.save();
+
+    res.json(laundryOrder);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// — Cancel Order
 exports.cancelLaundryOrder = async (req, res) => {
   try {
-    const updated = await Laundry.findByIdAndUpdate(
-      req.params.id,
-      { isCancelled: true, laundryStatus: "cancelled", remarks: req.body.remarks },
-      { new: true }
-    );
-    if (!updated) return res.status(404).json({ success: false, message: "Not found" });
-    res.json({ success: true, laundry: updated });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    const order = await Laundry.findByIdAndUpdate(req.params.id, { isCancelled: true, laundryStatus: "cancelled" }, { new: true });
+    res.json(order);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 
-// ✅ Mark Laundry as Returned
+// — Mark Returned
 exports.markLaundryReturned = async (req, res) => {
   try {
-    const updates = {
-      isReturned: true,
-      deliveredTime: req.body.deliveredTime || new Date(),
-      receivedBy: req.body.receivedBy
-    };
-    const updated = await Laundry.findByIdAndUpdate(req.params.id, updates, { new: true });
-    res.json({ success: true, laundry: updated });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    const order = await Laundry.findByIdAndUpdate(req.params.id, { isReturned: true }, { new: true });
+    res.json(order);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 
-// ✅ Report Damage or Loss
+// — Report Damage/Loss
 exports.reportDamageOrLoss = async (req, res) => {
   try {
-    const {
-      damageNotes, discardReason, returnDeadline,
-      lossNote, isLost, isFound, foundDate, foundRemarks
-    } = req.body;
+    // Ab body se directly sab le rahe hain
+    const { damageReported, damageNotes, isLost, lossNote } = req.body;
 
-    const updates = {
-      damageReported: true,
-      damageNotes,
-      discardReason,
-      returnDeadline,
-      lossNote,
-      isLost,
-      isFound,
-      foundDate,
-      foundRemarks
-    };
+    const order = await Laundry.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: "Order not found" });
 
-    const updated = await Laundry.findByIdAndUpdate(req.params.id, updates, { new: true });
-    res.json({ success: true, laundry: updated });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    // Agar client ne explicitly damageReported bheja hai tab update karo
+    if (typeof damageReported !== "undefined") {
+      order.damageReported = damageReported;
+    }
+
+    if (damageNotes) {
+      order.damageNotes = damageNotes;
+    }
+
+    // isLost default false hai, agar client ne value di to update karo
+    if (typeof isLost !== "undefined") {
+      order.isLost = isLost;
+    }
+
+    if (lossNote) {
+      order.lossNote = lossNote;
+    }
+
+    await order.save();
+    res.json(order);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 
-// ✅ Delete Laundry Order
+
+// — Delete Order
 exports.deleteLaundry = async (req, res) => {
   try {
-    const deleted = await Laundry.findByIdAndDelete(req.params.id);
-    if (!deleted) return res.status(404).json({ success: false, message: "Not found" });
-    res.json({ success: true, message: "Deleted" });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    await Laundry.findByIdAndDelete(req.params.id);
+    res.json({ message: "Laundry order deleted" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };

@@ -10,6 +10,7 @@ const roomRoutes = require('./src/routes/roomRoutes.js');
 const reservationRoutes = require('./src/routes/reservation.js');
 const housekeepingRoutes = require('./src/routes/housekeepingRoutes.js');
 const laundryRoutes = require('./src/routes/laundryRoutes.js');
+const LaundryRate = require('./src/routes/laundryRateRoutes.js')
 const cabRoutes = require('./src/routes/cabBookingRoutes.js');
 const driverRoutes = require('./src/routes/driverRoutes.js');
 const vehicleRoutes = require('./src/routes/vehicleRoutes.js');
@@ -110,6 +111,7 @@ app.use('/api/rooms', roomRoutes);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/housekeeping', housekeepingRoutes);
 app.use('/api/laundry', laundryRoutes);
+app.use('/api/laundry-rates', LaundryRate);
 app.use('/api/cab', cabRoutes);
 app.use('/api/driver', driverRoutes);
 app.use('/api/vehicle', vehicleRoutes);
