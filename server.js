@@ -61,47 +61,23 @@ app.use(express.json({ limit: '50mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 
-// Database connection for serverless environment
-let cachedDb = null;
-
-async function connectToDatabase() {
-  if (cachedDb) {
-    console.log('Using cached database connection');
-    return cachedDb;
-  }
-  
+// Database connection
+const connectToDatabase = async () => {
   try {
-    // Connect to MongoDB with optimized settings for serverless
-    const client = await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/login', {
+    await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/login', {
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 30000,
       connectTimeoutMS: 10000,
     });
-    
     console.log('MongoDB connected successfully');
-    cachedDb = client;
-    return client;
   } catch (error) {
     console.error('MongoDB connection error:', error);
-    throw error;
+    process.exit(1);
   }
-}
+};
 
-// Middleware to ensure database connection before processing requests
-app.use(async (req, res, next) => {
-  try {
-    // Skip DB connection check for health endpoint
-    if (req.path === '/health') {
-      return next();
-    }
-    
-    await connectToDatabase();
-    next();
-  } catch (error) {
-    console.error('Database connection error:', error);
-    return res.status(503).json({ error: 'Database connection unavailable' });
-  }
-});
+// Connect to database once on startup
+connectToDatabase();
 
 // Routes
 app.use('/api/auth', authRoutes);
