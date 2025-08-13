@@ -7,16 +7,10 @@ const laundrySchema = new mongoose.Schema({
   bookingId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Booking',
-    required: function () {
-      return this.itemType === 'guest'; // Only require for guest laundry
-    }
-  },  
-  requestedByDept: {
-    type: String,
-    enum: ["frontdesk", "housekeeping", "kitchen", "guest", "other"],
-    default: "guest",
+    required: true // ✅ Always required since only guest laundry will exist
   },
-  requestedByName: String,
+
+  requestedByName: String, // Guest name
 
   items: [
     {
@@ -26,13 +20,7 @@ const laundrySchema = new mongoose.Schema({
       deliveredQuantity: { type: Number, default: 0, min: 0 },
       status: {
         type: String,
-        enum: [
-          "pending",
-          "picked_up",
-          "ready",
-          "delivered",
-          "cancelled"
-        ],
+        enum: ["pending", "picked_up", "ready", "delivered", "cancelled"],
         default: "pending",
       },
       calculatedAmount: { type: Number, required: true },
@@ -40,7 +28,7 @@ const laundrySchema = new mongoose.Schema({
       itemNotes: String,
     }
   ],
-  itemType: { type: String, enum: ["guest", "house", "uniform"], required: true },
+
   isUrgent: { type: Boolean, default: false },
   urgencyNote: String,
   specialInstructions: String,
@@ -70,13 +58,14 @@ const laundrySchema = new mongoose.Schema({
   foundRemarks: String,
   lostDate: Date,
 
-  isBillable: { type: Boolean, default: false },
+  // Billing
+  isBillable: { type: Boolean, default: true }, 
   totalAmount: { type: Number, required: true },
   isComplimentary: { type: Boolean, default: false },
   billStatus: {
     type: String,
-    enum: ["not_applicable", "unpaid", "paid", "waived"],
-    default: "not_applicable",
+    enum: ["unpaid", "paid", "waived"],
+    default: "unpaid",
   },
 
   isReturned: { type: Boolean, default: false },
@@ -93,7 +82,9 @@ laundrySchema.pre("save", async function (next) {
         const rateDoc = await mongoose.model("LaundryRate").findById(item.rateId);
         if (rateDoc) {
           if (!item.itemName) item.itemName = rateDoc.itemName; 
-          if (!item.calculatedAmount) item.calculatedAmount = rateDoc.rate * item.quantity;
+          if (!item.calculatedAmount) {
+            item.calculatedAmount = rateDoc.rate * item.quantity;
+          }
         }
       }
       total += item.calculatedAmount || 0;

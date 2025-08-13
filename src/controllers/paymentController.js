@@ -58,6 +58,26 @@ exports.createPayment = async (req, res) => {
     });
 
     await payment.save();
+// After payment.save()
+const invoice = await Invoice.findById(payment.invoiceId);
+if (!invoice) throw new Error("Invoice not found");
+
+// Add this payment to the paid amount
+invoice.paidAmount = (invoice.paidAmount || 0) + payment.amount;
+
+// Update status based on total vs paid
+if (invoice.paidAmount >= invoice.totalAmount) {
+  invoice.status = "Paid";
+} else if (invoice.paidAmount > 0) {
+  invoice.status = "Partial";
+} else {
+  invoice.status = "Unpaid";
+}
+
+invoice.paymentMode = payment.paymentMode;
+invoice.paidAt = payment.receivedAt;
+
+await invoice.save();
 
     res.status(201).json({ message: 'Payment recorded successfully', data: payment });
   } catch (error) {

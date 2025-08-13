@@ -2,9 +2,33 @@
 const Laundry = require("../models/Laundry");
 const LaundryRate = require("../models/LaundryRate");
 const Booking = require("../models/Booking");
-const mongoose = require("mongoose");
 
-// — Create Laundry Order
+// — Helper: Calculate items total & lock itemName from rate table
+const calculateItems = async (items) => {
+  const rateIds = items.map(i => i.rateId);
+  const rates = await LaundryRate.find({ _id: { $in: rateIds } });
+  const rateMap = rates.reduce((acc, r) => {
+    acc[r._id.toString()] = r;
+    return acc;
+  }, {});
+
+  let total = 0;
+  const processedItems = items.map(i => {
+    const rateDoc = rateMap[i.rateId.toString()];
+    if (!rateDoc) throw new Error(`Rate not found for ID: ${i.rateId}`);
+    const calcAmount = rateDoc.rate * i.quantity;
+    total += calcAmount;
+    return {
+      ...i,
+      itemName: rateDoc.itemName,
+      calculatedAmount: calcAmount
+    };
+  });
+
+  return { processedItems, total };
+};
+
+// — Create Laundry Order 
 exports.createLaundryOrder = async (req, res) => {
   try {
     const { bookingId, items, roomNumber } = req.body;
@@ -13,24 +37,21 @@ exports.createLaundryOrder = async (req, res) => {
       return res.status(400).json({ message: "Booking ID and items are required" });
     }
 
-    // Auto-calculate item amounts from rateId
-    const populatedItems = await Promise.all(
-      items.map(async (item) => {
-        const rateDoc = await LaundryRate.findById(item.rateId);
-        if (!rateDoc) throw new Error(`Rate not found for ID: ${item.rateId}`);
-        return {
-          ...item,
-          calculatedAmount: rateDoc.rate * item.quantity,
-        };
-      })
-    );
+    const bookingExists = await Booking.findById(bookingId);
+    if (!bookingExists) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
 
-    const totalAmount = populatedItems.reduce((sum, i) => sum + i.calculatedAmount, 0);
+    const { processedItems, total } = await calculateItems(items);
 
     const laundryOrder = await Laundry.create({
-      ...req.body,
-      items: populatedItems,
-      totalAmount,
+      bookingId,
+      roomNumber: roomNumber || bookingExists.roomNumber,
+      requestedByName: bookingExists.guestName,
+      items: processedItems,
+      totalAmount: total,
+      isBillable: true,
+      billStatus: "unpaid",
     });
 
     res.status(201).json(laundryOrder);
@@ -45,7 +66,10 @@ exports.getAllLaundryOrders = async (req, res) => {
     const filter = {};
     if (req.query.urgent === "true") filter.isUrgent = true;
 
-    const orders = await Laundry.find(filter).populate("bookingId").populate("items.rateId");
+    const orders = await Laundry.find(filter)
+      .populate("bookingId", "guestName roomNumber checkInDate checkOutDate")
+      .populate("items.rateId");
+
     res.json(orders);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -55,8 +79,12 @@ exports.getAllLaundryOrders = async (req, res) => {
 // — Get By ID
 exports.getLaundryById = async (req, res) => {
   try {
-    const order = await Laundry.findById(req.params.id).populate("bookingId").populate("items.rateId");
+    const order = await Laundry.findById(req.params.id)
+      .populate("bookingId", "guestName roomNumber checkInDate checkOutDate")
+      .populate("items.rateId");
+
     if (!order) return res.status(404).json({ message: "Laundry order not found" });
+
     res.json(order);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -67,7 +95,6 @@ exports.getLaundryById = async (req, res) => {
 exports.getLaundryByGRCOrRoom = async (req, res) => {
   try {
     const { grcNo, roomNumber } = req.params;
-
     if (!grcNo && !roomNumber) {
       return res.status(400).json({ message: "Please provide GRC No or Room Number" });
     }
@@ -86,7 +113,6 @@ exports.getLaundryByGRCOrRoom = async (req, res) => {
   }
 };
 
-
 // — Update single item status/notes
 exports.updateLaundryItemStatus = async (req, res) => {
   try {
@@ -96,7 +122,6 @@ exports.updateLaundryItemStatus = async (req, res) => {
     const order = await Laundry.findById(laundryId);
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    // items array me se itemId match kar ke item find karo
     const item = order.items.id(itemId);
     if (!item) return res.status(404).json({ message: "Item not found" });
 
@@ -110,40 +135,14 @@ exports.updateLaundryItemStatus = async (req, res) => {
   }
 };
 
-// — Update Entire Order with recalculation
+// — Update Entire Order
 exports.updateLaundryOrder = async (req, res) => {
   try {
-    let updateData = { ...req.body };
+    const updateData = { ...req.body };
 
-    // If items array is being updated, recalc all amounts
-    if (req.body.items && Array.isArray(req.body.items) && req.body.items.length > 0) {
-      // 1. Get all rate IDs from the incoming items
-      const rateIds = req.body.items.map(i => i.rateId);
-      
-      // 2. Fetch all rate docs in one query
-      const rates = await LaundryRate.find({ _id: { $in: rateIds } });
-      const rateMap = rates.reduce((acc, r) => {
-        acc[r._id.toString()] = r; // store whole doc for both rate + itemName
-        return acc;
-      }, {});
-      
-      // 3. Loop through items to recalc amounts and add itemName
-      let total = 0;
-      const recalculatedItems = req.body.items.map(i => {
-        const rateDoc = rateMap[i.rateId.toString()];
-        if (!rateDoc) {
-          throw new Error(`Rate not found for ID: ${i.rateId}`);
-        }
-        const calcAmount = rateDoc.rate * i.quantity;
-        total += calcAmount;
-        return {
-          ...i,
-          itemName: rateDoc.itemName, // lock name from rate table
-          calculatedAmount: calcAmount
-        };
-      });
-
-      updateData.items = recalculatedItems;
+    if (req.body.items?.length) {
+      const { processedItems, total } = await calculateItems(req.body.items);
+      updateData.items = processedItems;
       updateData.totalAmount = total;
     }
 
@@ -159,11 +158,9 @@ exports.updateLaundryOrder = async (req, res) => {
 
     res.json(updatedOrder);
   } catch (err) {
-    console.error("Error updating laundry order:", err);
     res.status(500).json({ message: err.message });
   }
 };
-
 
 // — Add Items
 exports.addItemsToLaundryOrder = async (req, res) => {
@@ -174,19 +171,10 @@ exports.addItemsToLaundryOrder = async (req, res) => {
     const laundryOrder = await Laundry.findById(req.params.id);
     if (!laundryOrder) return res.status(404).json({ message: "Order not found" });
 
-    const newItems = await Promise.all(
-      items.map(async (item) => {
-        const rateDoc = await LaundryRate.findById(item.rateId);
-        if (!rateDoc) throw new Error(`Rate not found for ID: ${item.rateId}`);
-        return {
-          ...item,
-          calculatedAmount: rateDoc.rate * item.quantity,
-        };
-      })
-    );
+    const { processedItems, total } = await calculateItems(items);
 
-    laundryOrder.items.push(...newItems);
-    laundryOrder.totalAmount += newItems.reduce((sum, i) => sum + i.calculatedAmount, 0);
+    laundryOrder.items.push(...processedItems);
+    laundryOrder.totalAmount += total;
     await laundryOrder.save();
 
     res.json(laundryOrder);
@@ -198,7 +186,11 @@ exports.addItemsToLaundryOrder = async (req, res) => {
 // — Cancel Order
 exports.cancelLaundryOrder = async (req, res) => {
   try {
-    const order = await Laundry.findByIdAndUpdate(req.params.id, { isCancelled: true, laundryStatus: "cancelled" }, { new: true });
+    const order = await Laundry.findByIdAndUpdate(
+      req.params.id,
+      { isCancelled: true, laundryStatus: "cancelled" },
+      { new: true }
+    );
     res.json(order);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -208,7 +200,11 @@ exports.cancelLaundryOrder = async (req, res) => {
 // — Mark Returned
 exports.markLaundryReturned = async (req, res) => {
   try {
-    const order = await Laundry.findByIdAndUpdate(req.params.id, { isReturned: true }, { new: true });
+    const order = await Laundry.findByIdAndUpdate(
+      req.params.id,
+      { isReturned: true },
+      { new: true }
+    );
     res.json(order);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -218,29 +214,14 @@ exports.markLaundryReturned = async (req, res) => {
 // — Report Damage/Loss
 exports.reportDamageOrLoss = async (req, res) => {
   try {
-    // Ab body se directly sab le rahe hain
     const { damageReported, damageNotes, isLost, lossNote } = req.body;
-
     const order = await Laundry.findById(req.params.id);
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    // Agar client ne explicitly damageReported bheja hai tab update karo
-    if (typeof damageReported !== "undefined") {
-      order.damageReported = damageReported;
-    }
-
-    if (damageNotes) {
-      order.damageNotes = damageNotes;
-    }
-
-    // isLost default false hai, agar client ne value di to update karo
-    if (typeof isLost !== "undefined") {
-      order.isLost = isLost;
-    }
-
-    if (lossNote) {
-      order.lossNote = lossNote;
-    }
+    if (typeof damageReported !== "undefined") order.damageReported = damageReported;
+    if (damageNotes) order.damageNotes = damageNotes;
+    if (typeof isLost !== "undefined") order.isLost = isLost;
+    if (lossNote) order.lossNote = lossNote;
 
     await order.save();
     res.json(order);
@@ -248,7 +229,6 @@ exports.reportDamageOrLoss = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
-
 
 // — Delete Order
 exports.deleteLaundry = async (req, res) => {

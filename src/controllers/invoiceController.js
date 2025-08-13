@@ -7,6 +7,7 @@ const RestaurantOrder = require('../models/RestaurantOrder');
 const Room = require('../models/Room'); 
 const Housekeeping = require('../models/Housekeeping'); 
 const RoomInspection = require('../models/RoomInspection');
+const Laundry = require('../models/Laundry'); 
 
 // 🧮 Generate unique invoice number
 const generateInvoiceNumber = async () => {
@@ -26,7 +27,8 @@ const serviceModels = {
   RestaurantOrder,
   Room,
   //Housekeeping,
-  RoomInspection
+  RoomInspection,
+  Laundry
 };
 
 exports.createInvoice = async (req, res) => {
@@ -135,6 +137,24 @@ exports.createInvoice = async (req, res) => {
         subTotal = 0;
       }
     }
+// ===== Laundry Charges =====
+else if (serviceType === 'Laundry') {
+  const laundryItems = serviceDoc.items || [];
+
+  items = laundryItems.map(item => {
+    const qty = item.quantity || 1;
+    const amt = item.calculatedAmount || 0;
+    return {
+      description: `Laundry - ${item.itemNotes || 'No notes'} (Qty: ${qty})`,
+      amount: amt
+    };
+  });
+
+  subTotal = serviceDoc.totalAmount || items.reduce((sum, i) => sum + i.amount, 0);
+
+  // If laundry is linked to a booking, attach bookingId
+  bookingId = serviceDoc.bookingId || bookingId;
+}
 
     // ===== Other Services =====
     else if (req.body.items && Array.isArray(req.body.items)) {
