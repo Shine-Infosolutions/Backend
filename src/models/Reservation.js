@@ -73,7 +73,11 @@ const reservationSchema = new mongoose.Schema(
       isAdvancePaid: { type: Boolean, default: false },
       transactionId: String,
       discountPercent: Number,
-  
+      paymentStatus: {
+        type: String,
+        enum: ["Pending", "Partial", "Paid", "Refunded", "Failed"],
+        default: "Pending"
+      },
       // Optional Vehicle Details (for early info or VIPs)
       vehicleDetails: {
         vehicleNumber: String,

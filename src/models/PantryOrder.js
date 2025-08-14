@@ -1,69 +1,59 @@
 const mongoose = require('mongoose');
 
-const pantryOrderSchema = new mongoose.Schema({
+const PantryOrderSchema = new mongoose.Schema({
   orderNumber: {
     type: String,
+    required: true,
     unique: true
   },
-  orderType: {
+  roomNumber: {
     type: String,
-    required: true,
-    enum: ['kitchen-to-pantry', 'pantry-to-reception']
-  },
-  status: {
-    type: String,
-    required: true,
-    enum: ['pending', 'approved', 'fulfilled', 'cancelled'],
-    default: 'pending'
-  },
-  requestedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
     required: true
   },
-  approvedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+  guestName: {
+    type: String,
+    required: true
   },
   items: [{
-    pantryItemId: {
+    itemId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'PantryItem',
       required: true
     },
-    name: String,
     quantity: {
       type: Number,
       required: true,
       min: 1
     },
-    unit: String,
-    notes: String
+    unitPrice: {
+      type: Number,
+      required: true
+    }
   }],
-  requestDate: {
-    type: Date,
-    default: Date.now
+  totalAmount: {
+    type: Number,
+    required: true
   },
-  approvedDate: Date,
-  fulfilledDate: Date,
-  notes: String,
-  priority: {
+  status: {
     type: String,
-    enum: ['low', 'medium', 'high', 'urgent'],
-    default: 'medium'
+    enum: ['pending', 'preparing', 'ready', 'delivered', 'cancelled'],
+    default: 'pending'
+  },
+  orderType: {
+    type: String,
+    enum: ['room_service', 'pickup'],
+    default: 'room_service'
+  },
+  specialInstructions: {
+    type: String
+  },
+  orderedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  deliveredAt: {
+    type: Date
   }
-}, {
-  timestamps: true
-});
+}, { timestamps: true });
 
-// Generate order number before saving
-pantryOrderSchema.pre('save', function(next) {
-  if (!this.orderNumber) {
-    const prefix = this.orderType === 'kitchen-to-pantry' ? 'KP' : 'PR';
-    const timestamp = Date.now().toString().slice(-6);
-    this.orderNumber = `${prefix}-${timestamp}`;
-  }
-  next();
-});
-
-module.exports = mongoose.model('PantryOrder', pantryOrderSchema);
+module.exports = mongoose.models.PantryOrder || mongoose.model('PantryOrder', PantryOrderSchema);

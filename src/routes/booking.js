@@ -32,6 +32,8 @@ router.get(
   "/:bookingId",
   bookingController.getBookingById
 );
+// ✅ Get detail by grc of booking or reservation
+router.get("/fetch-by-grc/:grcNo", bookingController.getDetailsByGrc);
 
 // ✅ Unbook (soft delete) (admin or staff from 'reception')
 router.delete(
@@ -56,6 +58,18 @@ router.put(
 router.post(
   "/extend/:bookingId",
   bookingController.extendBooking
+);
+
+// ✅ Checkout booking (admin or staff from 'reception')
+router.post(
+  "/checkout/:bookingId",
+  bookingController.checkoutBooking
+);
+
+// ✅ Get booking history with invoices
+router.get(
+  "/history/all",
+  bookingController.getBookingHistory
 );
 
 module.exports = router;

@@ -3,6 +3,7 @@ const Category = require("../models/Category.js");
 const Room = require("../models/Room.js");
 const Housekeeping = require("../models/Housekeeping.js");
 const mongoose = require('mongoose');
+const  Reservation = require("../models/Reservation.js");
 
 // 🔹 Generate unique GRC number
 const generateGRC = async () => {
@@ -190,6 +191,70 @@ exports.getBookingsByCategory = async (req, res) => {
     res.json(bookings);
   } catch (error) {
     console.error("Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// 🔹 Checkout booking (enhanced process)
+exports.checkoutBooking = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const booking = await Booking.findById(bookingId);
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+
+    if (booking.status !== 'Checked In') {
+      return res.status(400).json({ error: 'Only checked-in bookings can be checked out' });
+    }
+
+    // Update booking status to 'Checked Out'
+    booking.status = 'Checked Out';
+    await booking.save();
+
+    // Find the room associated with this booking
+    let room = await Room.findOne({ room_number: String(booking.roomNumber) });
+
+    if (!room && booking.categoryId) {
+      room = await Room.findOne({
+        category: booking.categoryId,
+        room_number: String(booking.roomNumber)
+      });
+    }
+
+    if (!room) {
+      room = await Room.findOne({ room_number: booking.roomNumber });
+    }
+
+    if (room) {
+      // Set Room.status to 'maintenance' when checking out
+      room.status = 'maintenance';
+      await room.save();
+
+      // Check if a housekeeping task already exists for this room
+      const existingTask = await Housekeeping.findOne({
+        roomId: room._id,
+        status: { $in: ['pending', 'in-progress'] }
+      });
+
+      if (!existingTask) {
+        // Create a housekeeping task for this room
+        const housekeepingTask = new Housekeeping({
+          roomId: room._id,
+          cleaningType: 'checkout',
+          notes: `Room checkout cleaning and inventory check for ${booking.name}`,
+          priority: 'high',
+          status: 'pending'
+        });
+
+        await housekeepingTask.save();
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Checkout completed. Room set to maintenance status. Housekeeping task created.',
+      booking
+    });
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
@@ -418,6 +483,28 @@ exports.getBookingByGRC = async (req, res) => {
   }
 };
 
+exports.getDetailsByGrc = async (req, res) => {
+  try {
+    const { grcNo } = req.params;
+
+    // First check if booking exists for GRC
+    let record = await Booking.findOne({ grcNo });
+    if (!record) {
+      // If not, check in reservation
+      record = await Reservation.findOne({ grcNo });
+    }
+
+    if (!record) {
+      return res.status(404).json({ message: "No booking/reservation found for this GRC" });
+    }
+
+    res.json(record);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+
 // Get booking by Booking ID
 exports.getBookingById = async (req, res) => {
   try {
@@ -435,6 +522,31 @@ exports.getBookingById = async (req, res) => {
     }
 
     res.json({ success: true, booking: result });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Get booking history with invoices
+exports.getBookingHistory = async (req, res) => {
+  try {
+    const Invoice = require('../models/Invoice');
+    
+    const bookings = await Booking.find({
+      status: { $in: ['Booked', 'Checked In', 'Checked Out'] }
+    }).populate('categoryId').sort({ createdAt: -1 });
+
+    const bookingHistory = await Promise.all(
+      bookings.map(async (booking) => {
+        const invoices = await Invoice.find({ bookingId: booking._id });
+        return {
+          ...booking.toObject(),
+          invoices
+        };
+      })
+    );
+
+    res.json({ success: true, bookings: bookingHistory });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

@@ -70,10 +70,10 @@ exports.createPantryOrder = async (req, res) => {
   try {
     const order = new PantryOrder({
       ...req.body,
-      requestedBy: req.user.id,
+      orderedBy: req.user.id,
     });
     await order.save();
-    await order.populate("requestedBy", "username email");
+    await order.populate("orderedBy", "username email");
     res.status(201).json({ success: true, order });
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -90,8 +90,7 @@ exports.getPantryOrders = async (req, res) => {
     if (status) filter.status = status;
 
     const orders = await PantryOrder.find(filter)
-      .populate("requestedBy", "username email")
-      .populate("approvedBy", "username email")
+      .populate("orderedBy", "username email")
       .sort({ createdAt: -1 });
 
     res.json({ success: true, orders });
@@ -112,22 +111,19 @@ exports.updatePantryOrderStatus = async (req, res) => {
 
     order.status = status;
 
-    if (status === "approved") {
-      order.approvedBy = req.user.id;
-      order.approvedDate = new Date();
-    } else if (status === "fulfilled") {
-      order.fulfilledDate = new Date();
+    if (status === "delivered") {
+      order.deliveredAt = new Date();
 
-      // Update pantry item stock if fulfilled
+      // Update pantry item stock if delivered
       for (const item of order.items) {
-        await PantryItem.findByIdAndUpdate(item.pantryItemId, {
+        await PantryItem.findByIdAndUpdate(item.itemId, {
           $inc: { currentStock: -item.quantity },
         });
       }
     }
 
     await order.save();
-    await order.populate("requestedBy approvedBy", "username email");
+    await order.populate("orderedBy", "username email");
 
     res.json({ success: true, order });
   } catch (error) {

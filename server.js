@@ -10,6 +10,7 @@ const roomRoutes = require('./src/routes/roomRoutes.js');
 const reservationRoutes = require('./src/routes/reservation.js');
 const housekeepingRoutes = require('./src/routes/housekeepingRoutes.js');
 const laundryRoutes = require('./src/routes/laundryRoutes.js');
+const LaundryRate = require('./src/routes/laundryRateRoutes.js')
 const cabRoutes = require('./src/routes/cabBookingRoutes.js');
 const driverRoutes = require('./src/routes/driverRoutes.js');
 const vehicleRoutes = require('./src/routes/vehicleRoutes.js');
@@ -28,6 +29,7 @@ const paginationRoutes = require('./src/routes/paginationRoutes');
 const notificationRoutes = require('./src/routes/notificationRoutes');
 const invoiceRoutes = require('./src/routes/invoiceRoutes.js');
 const roomInventoryRoutes = require('./src/routes/roomInventoryRoutes.js');
+
 const paymentRoutes = require('./src/routes/paymentRoutes.js');
 const path = require('path');
 // Initialize express app
@@ -38,6 +40,7 @@ const allowedOrigins = [
   "http://localhost:5173",
   "https://backend-hazel-xi.vercel.app",
   "https://buddha-crm.vercel.app",
+  "https://buddha-admin.vercel.app"
 ];
 app.use(
   cors({
@@ -58,47 +61,23 @@ app.use(express.json({ limit: '50mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 
-// Database connection for serverless environment
-let cachedDb = null;
-
-async function connectToDatabase() {
-  if (cachedDb) {
-    console.log('Using cached database connection');
-    return cachedDb;
-  }
-  
+// Database connection
+const connectToDatabase = async () => {
   try {
-    // Connect to MongoDB with optimized settings for serverless
-    const client = await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/login', {
+    await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/login', {
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 30000,
       connectTimeoutMS: 10000,
     });
-    
     console.log('MongoDB connected successfully');
-    cachedDb = client;
-    return client;
   } catch (error) {
     console.error('MongoDB connection error:', error);
-    throw error;
+    process.exit(1);
   }
-}
+};
 
-// Middleware to ensure database connection before processing requests
-app.use(async (req, res, next) => {
-  try {
-    // Skip DB connection check for health endpoint
-    if (req.path === '/health') {
-      return next();
-    }
-    
-    await connectToDatabase();
-    next();
-  } catch (error) {
-    console.error('Database connection error:', error);
-    return res.status(503).json({ error: 'Database connection unavailable' });
-  }
-});
+// Connect to database once on startup
+connectToDatabase();
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -108,6 +87,7 @@ app.use('/api/rooms', roomRoutes);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/housekeeping', housekeepingRoutes);
 app.use('/api/laundry', laundryRoutes);
+app.use('/api/laundry-rates', LaundryRate);
 app.use('/api/cab', cabRoutes);
 app.use('/api/driver', driverRoutes);
 app.use('/api/vehicle', vehicleRoutes);
@@ -126,6 +106,7 @@ app.use('/api/paginate', paginationRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/room-inventory', roomInventoryRoutes);
+
 app.use('/api/payments', paymentRoutes);
 
 // Health check endpoint

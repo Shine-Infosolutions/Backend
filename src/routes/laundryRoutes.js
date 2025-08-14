@@ -3,88 +3,40 @@ const router = express.Router();
 const laundryController = require("../controllers/laundryController");
 const authMiddleware = require("../middleware/authMiddleware");
 
-// — Create
-router.post(
-  "/",
-  authMiddleware(["admin", "staff"], ["laundry"]),
-  laundryController.createLaundryOrder
-);
+// Create laundry order
+router.post("/order", laundryController.createLaundryOrder);
 
-// — Read all (with optional ?urgent=true)
-router.get(
-  "/",
-  authMiddleware(["admin", "staff"], ["laundry"]),
-  laundryController.getAllLaundryOrders
-);
+// Get all laundry orders (optional filter: ?urgent=true)
+router.get("/all", laundryController.getAllLaundryOrders);
 
-// — Read single by ID
-router.get(
-  "/:id",
-  authMiddleware(["admin", "staff"], ["laundry"]),
-  laundryController.getLaundryById
-);
+// Get Laundry Orders by GRC No
+router.get("/by-grc/:grcNo", laundryController.getLaundryByGRCOrRoom);
 
-// — Read by GRC No
-router.get(
-  "/grc/:grcNo",
-  authMiddleware(["admin", "staff"], ["laundry"]),
-  laundryController.getLaundryByGRC
-);
+// Get Laundry Orders by Room Number
+router.get("/by-room/:roomNumber", laundryController.getLaundryByGRCOrRoom);
 
-// — Read by Room Number
-router.get(
-  "/room/:roomNumber",
-  authMiddleware(["admin", "staff"], ["laundry"]),
-  laundryController.getLaundryByRoom
-);
+// Get laundry order by ID (placed after specific routes to avoid conflicts)
+router.get("/:id", laundryController.getLaundryById);
 
-// — Update entire order
-router.put(
-  "/:id",
-  authMiddleware(["admin", "staff"], ["laundry"]),
-  laundryController.updateLaundryOrder
-);
+// Update entire laundry order
+router.put("/:id", laundryController.updateLaundryOrder);
 
-// — Add items into existing order
-router.patch(
-  "/add-items/:id",
-  authMiddleware(["admin", "staff"], ["laundry"]),
-  laundryController.addItemsToLaundryOrder
-);
+// Add items into existing order
+router.patch("/add-items/:id", laundryController.addItemsToLaundryOrder);
 
-// — Update single item status/notes
-router.patch(
-  "/item/:laundryId/:itemName",
-  authMiddleware(["admin", "staff"], ["laundry"]),
-  laundryController.updateLaundryItemStatus
-);
+// upd item route 
+router.patch("/item/:laundryId/:itemId", laundryController.updateLaundryItemStatus);
 
-// — Cancel order
-router.patch(
-  "/cancel/:id",
-  authMiddleware(["admin", "staff"], ["laundry"]),
-  laundryController.cancelLaundryOrder
-);
+// Cancel laundry order
+router.patch("/cancel/:id", laundryController.cancelLaundryOrder);
 
-// — Mark returned
-router.patch(
-  "/return/:id",
-  authMiddleware(["admin", "staff"], ["laundry"]),
-  laundryController.markLaundryReturned
-);
+// Mark laundry returned
+router.patch("/return/:id", laundryController.markLaundryReturned);
 
-// — Report damage or loss
-router.post(
-  "/loss/:id",
-  authMiddleware(["admin", "staff"], ["laundry"]),
-  laundryController.reportDamageOrLoss
-);
+// Report damage or loss
+router.post("/loss/:id", laundryController.reportDamageOrLoss);
 
-// — Delete order
-router.delete(
-  "/:id",
-  authMiddleware(["admin"], ["laundry"]),
-  laundryController.deleteLaundry
-);
+// Delete laundry order
+router.delete("/:id", authMiddleware(["admin"], ["laundry"]), laundryController.deleteLaundry);
 
 module.exports = router;

@@ -36,11 +36,18 @@ router.get(
 
 //get incep check
 router.get('/roominspection/:roomId', housekeepingController.getChecklistByRoom);
+router.get('/checklist/:roomId', housekeepingController.getChecklistByRoom);
 
 // Update task status
 router.patch(
   '/tasks/:taskId/status',
   authMiddleware(['admin', 'staff'], ['housekeeping']), // Specifically allow housekeeping staff
+  housekeepingController.updateTaskStatus
+);
+
+router.put(
+  '/tasks/:taskId/status',
+  authMiddleware(['admin', 'staff'], ['housekeeping']),
   housekeepingController.updateTaskStatus
 );
 
@@ -61,6 +68,7 @@ router.post(
 );
 // POST: Create a new inspection (minibar or floor-checklist)
 router.post('/roominspection', housekeepingController.createRoomInspection);
+router.post('/room-inspection', housekeepingController.createRoomInspection);
 
 // Resolve reported issue
 router.put(
@@ -90,29 +98,15 @@ router.get(
   housekeepingController.getAvailableStaff
 );
 
-// Upload before cleaning images
+// Upload images (Base64)
 router.post(
   '/tasks/:taskId/images/before',
-  authMiddleware(['admin', 'staff']), // Allow any staff or admin to upload images
-  housekeepingController.uploadBeforeImages
-);
-
-// Upload after cleaning images
-router.post(
-  '/tasks/:taskId/images/after',
-  authMiddleware(['admin', 'staff']), // Allow any staff or admin to upload images
-  housekeepingController.uploadAfterImages
-);
-
-// Base64 fallback routes for CORS issues
-router.post(
-  '/tasks/:taskId/images/before/base64',
   authMiddleware(['admin', 'staff']),
   uploadController.uploadBase64Images
 );
 
 router.post(
-  '/tasks/:taskId/images/after/base64',
+  '/tasks/:taskId/images/after',
   authMiddleware(['admin', 'staff']),
   uploadController.uploadBase64Images
 );

@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const invoiceSchema = new mongoose.Schema({
   serviceType: {
     type: String,
-    enum: ['Booking', 'Reservation', 'CabBooking', 'Room', 'Housekeeping','RoomInspection'],
+    enum: ['Booking', 'Reservation', 'CabBooking', 'Room', 'Housekeeping','RoomInspection','Laundry'],
     required: true
   },
   serviceRefId: {
@@ -35,6 +35,9 @@ const invoiceSchema = new mongoose.Schema({
   tax: Number,
   discount: Number,
   totalAmount: Number,
+  // ✅ NEW: Tracks payments and balance
+  paidAmount: { type: Number, default: 0, min: 0 },
+  balanceAmount: { type: Number, required: true, min: 0 },
   paymentMode: {
     type: String,
     enum: ['Cash', 'Card', 'UPI', 'Bank Transfer', 'Other']
