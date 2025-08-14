@@ -32,6 +32,8 @@ router.get(
   "/:bookingId",
   bookingController.getBookingById
 );
+// ✅ Get detail by grc of booking or reservation
+router.get("/fetch-by-grc/:grcNo", bookingController.getDetailsByGrc);
 
 // ✅ Unbook (soft delete) (admin or staff from 'reception')
 router.delete(

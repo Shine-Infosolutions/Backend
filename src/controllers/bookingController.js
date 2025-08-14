@@ -3,6 +3,7 @@ const Category = require("../models/Category.js");
 const Room = require("../models/Room.js");
 const Housekeeping = require("../models/Housekeeping.js");
 const mongoose = require('mongoose');
+const  Reservation = require("../models/Reservation.js");
 
 // 🔹 Generate unique GRC number
 const generateGRC = async () => {
@@ -481,6 +482,28 @@ exports.getBookingByGRC = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+exports.getDetailsByGrc = async (req, res) => {
+  try {
+    const { grcNo } = req.params;
+
+    // First check if booking exists for GRC
+    let record = await Booking.findOne({ grcNo });
+    if (!record) {
+      // If not, check in reservation
+      record = await Reservation.findOne({ grcNo });
+    }
+
+    if (!record) {
+      return res.status(404).json({ message: "No booking/reservation found for this GRC" });
+    }
+
+    res.json(record);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 
 // Get booking by Booking ID
 exports.getBookingById = async (req, res) => {
