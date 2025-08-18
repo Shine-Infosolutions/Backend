@@ -1,0 +1,50 @@
+const mongoose = require('mongoose');
+
+const RestaurantReservationSchema = new mongoose.Schema({
+  reservationNumber: {
+    type: String,
+    required: true,
+    unique: true
+  },
+  guestName: {
+    type: String,
+    required: true
+  },
+  phoneNumber: {
+    type: String,
+    required: true
+  },
+  email: {
+    type: String
+  },
+  partySize: {
+    type: Number,
+    required: true,
+    min: 1
+  },
+  reservationDate: {
+    type: Date,
+    required: true
+  },
+  reservationTime: {
+    type: String,
+    required: true
+  },
+  tableNo: {
+    type: String
+  },
+  status: {
+    type: String,
+    enum: ['reserved', 'running', 'served'],
+    default: 'reserved'
+  },
+  specialRequests: {
+    type: String
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }
+}, { timestamps: true });
+
+module.exports = mongoose.models.RestaurantReservation || mongoose.model('RestaurantReservation', RestaurantReservationSchema);
