@@ -35,11 +35,15 @@ const RestaurantReservationSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['reserved', 'running', 'served'],
-    default: 'reserved'
+    enum: ['enquiry', 'reserved', 'confirm'],
+    default: 'enquiry'
   },
   specialRequests: {
     type: String
+  },
+  advancePayment: {
+    type: Number,
+    default: 0
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,

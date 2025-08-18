@@ -9,6 +9,7 @@ router.get('/all', restaurantReservationController.getAllReservations);
 router.get('/:id', restaurantReservationController.getReservationById);
 router.put('/:id', authMiddleware(['admin', 'staff', 'restaurant']), restaurantReservationController.updateReservation);
 router.patch('/:id/status', authMiddleware(['admin', 'staff', 'restaurant']), restaurantReservationController.updateReservationStatus);
+router.patch('/:id/payment', authMiddleware(['admin', 'staff', 'restaurant']), restaurantReservationController.updatePayment);
 router.delete('/:id', authMiddleware(['admin']), restaurantReservationController.deleteReservation);
 
 module.exports = router;

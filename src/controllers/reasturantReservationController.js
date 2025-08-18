@@ -22,9 +22,12 @@ exports.createReservation = async (req, res) => {
       reservationDate,
       reservationTime,
       specialRequests,
+      advancePayment
     } = req.body;
     const reservationNumber = await generateReservationNumber();
 
+    const status = (advancePayment && advancePayment > 0) ? 'reserved' : 'enquiry';
+    
     const reservation = new RestaurantReservation({
       reservationNumber,
       guestName,
@@ -34,6 +37,8 @@ exports.createReservation = async (req, res) => {
       reservationDate,
       reservationTime,
       specialRequests,
+      advancePayment: advancePayment || 0,
+      status,
       createdBy: req.user?.id || req.user?._id,
     });
 
@@ -99,6 +104,23 @@ exports.updateReservationStatus = async (req, res) => {
     
     const reservation = await RestaurantReservation.findByIdAndUpdate(
       req.params.id, updates, { new: true }
+    );
+    if (!reservation) return res.status(404).json({ error: 'Reservation not found' });
+    res.json(reservation);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+exports.updatePayment = async (req, res) => {
+  try {
+    const { advancePayment } = req.body;
+    const status = (advancePayment && advancePayment > 0) ? 'reserved' : 'enquiry';
+    
+    const reservation = await RestaurantReservation.findByIdAndUpdate(
+      req.params.id,
+      { advancePayment, status },
+      { new: true }
     );
     if (!reservation) return res.status(404).json({ error: 'Reservation not found' });
     res.json(reservation);
