@@ -4,10 +4,6 @@ const mongoose = require("mongoose");
 const laundrySchema = new mongoose.Schema({
   grcNo: String,
   roomNumber: String,
-  bookingId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Booking',
-  },
 
   requestedByName: String, // Guest name
 
