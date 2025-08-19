@@ -6,7 +6,7 @@ const laundrySchema = new mongoose.Schema({
   roomNumber: String,
   bookingId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Booking', ✅ Always required since only guest laundry will exist
+    ref: 'Booking',
   },
 
   requestedByName: String, // Guest name
