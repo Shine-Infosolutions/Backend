@@ -35,7 +35,7 @@ const RestaurantReservationSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['enquiry', 'reserved', 'confirm'],
+    enum: ['enquiry', 'reserved', 'complete'],
     default: 'enquiry'
   },
   specialRequests: {
