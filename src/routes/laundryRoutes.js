@@ -9,11 +9,10 @@ router.post("/order", laundryController.createLaundryOrder);
 // Get all laundry orders (optional filter: ?urgent=true)
 router.get("/all", laundryController.getAllLaundryOrders);
 
-// Get Laundry Orders by GRC No
-router.get("/by-grc/:grcNo", laundryController.getLaundryByGRCOrRoom);
+// by grc or room no (using query parameters)
+router.get('/by-grc-or-room', laundryController.getLaundryByGRCOrRoom);
 
-// Get Laundry Orders by Room Number
-router.get("/by-room/:roomNumber", laundryController.getLaundryByGRCOrRoom);
+router.get("/filter-by-date", laundryController.filterLaundryByDate);
 
 // Get laundry order by ID (placed after specific routes to avoid conflicts)
 router.get("/:id", laundryController.getLaundryById);
