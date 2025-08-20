@@ -94,11 +94,10 @@ exports.getLaundryById = async (req, res) => {
 // — Get Laundry by GRC No or Room Number
 exports.getLaundryByGRCOrRoom = async (req, res) => {
   try {
-    const { grcNo, roomNumber } = req.params;
+    const { grcNo, roomNumber } = req.query;
     if (!grcNo && !roomNumber) {
       return res.status(400).json({ message: "Please provide GRC No or Room Number" });
     }
-
     const query = {};
     if (grcNo) query.grcNo = grcNo;
     if (roomNumber) query.roomNumber = roomNumber;
@@ -106,7 +105,7 @@ exports.getLaundryByGRCOrRoom = async (req, res) => {
     const orders = await Laundry.find(query)
       .populate("bookingId", "guestName checkInDate checkOutDate")
       .populate("items.rateId");
-
+    
     res.json(orders);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -229,6 +228,49 @@ exports.reportDamageOrLoss = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+// — Get Laundry orders filtered by date range for a specific date field
+exports.filterLaundryByDate = async (req, res) => {
+  try {
+    const { startDate, endDate, dateField } = req.query;
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({ message: "Please provide both startDate and endDate in ISO format (YYYY-MM-DD)" });
+    }
+
+    // Allowed fields for date filtering (add more if needed)
+    const allowedDateFields = [
+      "createdAt",
+      "scheduledPickupTime",
+      "scheduledDeliveryTime",
+      "pickupTime",
+      "deliveredTime",
+      "foundDate",
+      "lostDate"
+    ];
+
+    const field = allowedDateFields.includes(dateField) ? dateField : "createdAt";
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    // Include whole end day
+    end.setHours(23, 59, 59, 999);
+
+    // Build dynamic query
+    const query = {
+      [field]: { $gte: start, $lte: end }
+    };
+
+    const orders = await Laundry.find(query)
+      .populate("bookingId", "guestName roomNumber checkInDate checkOutDate")
+      .populate("items.rateId");
+
+    res.json(orders);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 
 // — Delete Order
 exports.deleteLaundry = async (req, res) => {

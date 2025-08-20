@@ -6,7 +6,10 @@ const laundrySchema = new mongoose.Schema({
   roomNumber: String,
 
   requestedByName: String, // Guest name
-
+  bookingId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Booking',  
+  },
   items: [
     {
       rateId: { type: mongoose.Schema.Types.ObjectId, ref: "LaundryRate", required: true },
