@@ -20,7 +20,8 @@ exports.createReservation = async (req, res) => {
       email,
       partySize,
       reservationDate,
-      reservationTime,
+      reservationTimeIn,
+      reservationTimeOut,
       specialRequests,
       advancePayment
     } = req.body;
@@ -35,7 +36,8 @@ exports.createReservation = async (req, res) => {
       email,
       partySize,
       reservationDate,
-      reservationTime,
+      reservationTimeIn,  
+      reservationTimeOut,
       specialRequests,
       advancePayment: advancePayment || 0,
       status,
