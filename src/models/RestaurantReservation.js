@@ -26,7 +26,11 @@ const RestaurantReservationSchema = new mongoose.Schema({
     type: Date,
     required: true
   },
-  reservationTime: {
+  reservationTimeIn: {
+    type: String,
+    required: true
+  },
+  reservationTimeOut: {
     type: String,
     required: true
   },
