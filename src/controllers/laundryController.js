@@ -2,6 +2,20 @@
 const Laundry = require("../models/Laundry");
 const LaundryRate = require("../models/LaundryRate");
 const Booking = require("../models/Booking");
+const Invoice = require("../models/Invoice");
+
+
+// 🔹 Helper → Unique Invoice Number generate
+const generateInvoiceNumber = async () => {
+  let invoiceNumber, exists = true;
+  while (exists) {
+    const rand = Math.floor(10000 + Math.random() * 90000);
+    invoiceNumber = `INV-${rand}`;
+    exists = await Invoice.findOne({ invoiceNumber });
+  }
+  return invoiceNumber;
+};
+
 
 // — Helper: Calculate items total & lock itemName from rate table
 const calculateItems = async (items) => {
@@ -28,35 +42,74 @@ const calculateItems = async (items) => {
   return { processedItems, total };
 };
 
-// — Create Laundry Order 
+// 🔹 Create Laundry Order
 exports.createLaundryOrder = async (req, res) => {
   try {
-    const { bookingId, items, roomNumber } = req.body;
+    const { bookingId, items, urgent } = req.body;
 
-    if (!bookingId || !items?.length) {
-      return res.status(400).json({ message: "Booking ID and items are required" });
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: "Items are required" });
     }
 
-    const bookingExists = await Booking.findById(bookingId);
-    if (!bookingExists) {
-      return res.status(404).json({ message: "Booking not found" });
+    // Calculate total
+    let totalAmount = 0;
+    const laundryItems = [];
+
+    for (const item of items) {
+      const rate = await LaundryRate.findById(item.rateId);
+      if (!rate) {
+        return res.status(404).json({ error: "Invalid laundry rate" });
+      }
+      const calculatedAmount = rate.rate * item.quantity;
+      totalAmount += calculatedAmount;
+
+      laundryItems.push({
+        itemName: rate.itemName,
+        rateId: rate._id,
+        quantity: item.quantity,
+        calculatedAmount,
+      });
     }
 
-    const { processedItems, total } = await calculateItems(items);
-
+    // Save Laundry order
     const laundryOrder = await Laundry.create({
       bookingId,
-      roomNumber: roomNumber || bookingExists.roomNumber,
-      requestedByName: bookingExists.guestName,
-      items: processedItems,
-      totalAmount: total,
-      isBillable: true,
+      items: laundryItems,
+      totalAmount,
+      urgent: urgent || false,
       billStatus: "unpaid",
     });
 
-    res.status(201).json(laundryOrder);
+    // ✅ Create Invoice (just like Housekeeping flow)
+    const invoiceNumber = await generateInvoiceNumber();
+    const invoiceItems = laundryItems.map(i => ({
+      description: `${i.itemName} x ${i.quantity}`,
+      amount: i.calculatedAmount,
+    }));
+
+    await Invoice.create({
+      serviceType: "Laundry",
+      serviceRefId: laundryOrder._id,
+      invoiceNumber,
+      bookingId,
+      items: invoiceItems,
+      subTotal: totalAmount,
+      tax: 0,
+      discount: 0,
+      totalAmount: totalAmount,
+      paidAmount: 0,
+      balanceAmount: totalAmount,
+      status: "Unpaid",
+    });
+
+    res.status(201).json({
+      message: "Laundry order created successfully with invoice",
+      laundryOrder,
+      totalAmount,
+    });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("Laundry order error:", err);
+    res.status(500).json({ error: err.message });
   }
 };
 

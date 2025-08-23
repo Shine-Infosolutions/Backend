@@ -5,6 +5,15 @@ const RestaurantOrderSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+   // For in-house (hotel guest) orders
+   bookingId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Booking'
+  },
+  grcNo: String,
+  roomNumber: String,
+  guestName: String,
+  guestPhone: String,
   phoneNumber: {
     type: String,
     required: true

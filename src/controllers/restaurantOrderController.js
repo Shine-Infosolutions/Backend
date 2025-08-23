@@ -19,12 +19,24 @@ const generateKOTNumber = async () => {
 // Create a new restaurant order
 exports.createOrder = async (req, res) => {
   try {
-    // Automatically set createdBy from authenticated user
+    const { bookingId } = req.body;
+
+    // Agar bookingId diya hai → In-house guest order
+    // Agar bookingId nhi diya hai → Normal walk-in/table order
+    if (!bookingId) {
+      if (!req.body.staffName || !req.body.phoneNumber || !req.body.tableNo) {
+        return res.status(400).json({
+          error: "For non-booking orders, staffName, phoneNumber, and tableNo are required"
+        });
+      }
+    }
+
+    // Save Order
     const orderData = { ...req.body, createdBy: req.user?.id };
     const order = new RestaurantOrder(orderData);
     await order.save();
-    
-    // Auto-create KOT for the order
+
+    // Auto-create KOT
     const kotNumber = await generateKOTNumber();
     const kotItems = await Promise.all(order.items.map(async (item) => {
       const itemDetails = await Item.findById(item.itemId);
@@ -34,16 +46,16 @@ exports.createOrder = async (req, res) => {
         quantity: item.quantity
       };
     }));
-    
+
     const kot = new KOT({
       orderId: order._id,
       kotNumber,
-      tableNo: order.tableNo,
+      tableNo: order.tableNo || "Inhouse Booking", // agar table no nhi hai to fallback
       items: kotItems,
       createdBy: req.user?.id
     });
     await kot.save();
-    
+
     res.status(201).json({ order, kot });
   } catch (error) {
     res.status(400).json({ error: error.message });
