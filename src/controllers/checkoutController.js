@@ -58,9 +58,9 @@ exports.createCheckout = async (req, res) => {
         const quantity = Number(item.quantity) || 0;
         const rate = Number(item.rateId?.rate) || 0;
         const amount = Number(item.calculatedAmount) || rate * quantity || 0;
-
+    
         laundryCharges += amount;
-
+    
         return {
           itemName: item.itemName,
           quantity,
@@ -68,14 +68,14 @@ exports.createCheckout = async (req, res) => {
           amount
         };
       });
-
+    
       return {
         laundryId: service._id,
         items,
         serviceAmount: items.reduce((sum, i) => sum + i.amount, 0),
         serviceDate: service.createdAt
       };
-    });
+    });    
 
     // Prepare inspection items
     let inspectionCharges = 0;

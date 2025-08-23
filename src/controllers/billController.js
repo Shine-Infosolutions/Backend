@@ -55,7 +55,7 @@ exports.processPayment = async (req, res) => {
     if (!bill) return res.status(404).json({ error: 'Bill not found' });
     
     const changeAmount = paidAmount > bill.totalAmount ? paidAmount - bill.totalAmount : 0;
-    const paymentStatus = paidAmount >= bill.totalAmount ? 'paid' : 'partial';
+    const paymentStatus = paidAmount >= bill.totalAmount ? 'paid' : 'pending';
     
     bill.paidAmount = paidAmount;
     bill.changeAmount = changeAmount;
