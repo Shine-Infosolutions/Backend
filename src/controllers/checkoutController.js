@@ -10,12 +10,6 @@ exports.createCheckout = async (req, res) => {
   try {
     const { bookingId } = req.body;
 
-    // Check if checkout already exists
-    const existingCheckout = await Checkout.findOne({ bookingId });
-    if (existingCheckout) {
-      return res.status(400).json({ message: 'Checkout already exists for this booking' });
-    }
-
     // Get all service charges for this booking
     const [restaurantOrders, laundryServices, inspections] = await Promise.all([
       RestaurantOrder.find({ bookingId }).populate('items.itemId'),
@@ -29,92 +23,132 @@ exports.createCheckout = async (req, res) => {
       return res.status(404).json({ message: 'Booking not found' });
     }
 
-    // Calculate charges
-    const restaurantCharges = restaurantOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
-    const laundryCharges = laundryServices.reduce((sum, service) => sum + (service.totalAmount || 0), 0);
-    const inspectionCharges = inspections.reduce((sum, inspection) => sum + (inspection.totalCharges || 0), 0);
-    const bookingCharges = booking.rate || 0;
+    // Calculate restaurantCharges correctly as sum of item amounts
+    let restaurantCharges = 0;
+    const restaurantItems = restaurantOrders.map(order => {
+      const items = order.items.map(item => {
+        const quantity = Number(item.quantity) || 0;
+        const price = Number(item.itemId?.Price) || Number(item.price) || 0;
+        const amount = price * quantity;
 
-    // Prepare service items
-    const serviceItems = {
-      restaurant: restaurantOrders.map(order => ({
-        orderId: order._id,
-        items: order.items.map(item => ({
+        restaurantCharges += amount; // accumulate total
+
+        return {
+          itemId: item.itemId?._id,
           itemName: item.itemId?.name || item.itemName,
-          quantity: item.quantity,
-          rate: item.rate,
-          amount: item.amount
-        })),
-        orderAmount: order.totalAmount,
+          quantity,
+          price,
+          rate: price,
+          amount
+        };
+      });
+
+      return {
+        orderId: order._id,
+        items,
+        orderAmount: items.reduce((sum, i) => sum + i.amount, 0),
         orderDate: order.createdAt
-      })),
-      
-      laundry: laundryServices.map(service => ({
-        laundryId: service._id,
-        items: service.items.map(item => ({
+      };
+    });
+
+    // Calculate laundryCharges correctly
+    let laundryCharges = 0;
+    const laundryItems = laundryServices.map(service => {
+      const items = service.items.map(item => {
+        const quantity = Number(item.quantity) || 0;
+        const rate = Number(item.rateId?.rate) || 0;
+        const amount = Number(item.calculatedAmount) || rate * quantity || 0;
+    
+        laundryCharges += amount;
+    
+        return {
           itemName: item.itemName,
-          quantity: item.quantity,
-          rate: item.rateId?.rate || 0,
-          amount: item.calculatedAmount
-        })),
-        serviceAmount: service.totalAmount,
+          quantity,
+          rate,
+          amount
+        };
+      });
+    
+      return {
+        laundryId: service._id,
+        items,
+        serviceAmount: items.reduce((sum, i) => sum + i.amount, 0),
         serviceDate: service.createdAt
-      })),
-      
-      inspection: inspections.map(inspection => {
-        let items = [];
-        
-        if (inspection.checklist?.length > 0) {
-          const damagedItems = inspection.checklist.filter(item => 
-            item.status !== 'ok' && ['missing', 'damaged', 'used'].includes(item.status)
-          );
-          if (damagedItems.length > 0) {
-            const chargePerItem = inspection.totalCharges / damagedItems.length;
-            items = damagedItems.map(item => ({
+      };
+    });    
+
+    // Prepare inspection items
+    let inspectionCharges = 0;
+    const inspectionItems = inspections.map(inspection => {
+      let items = [];
+
+      if (inspection.checklist?.length > 0) {
+        const damagedItems = inspection.checklist.filter(item =>
+          item.status !== 'ok' && ['missing', 'damaged', 'used'].includes(item.status)
+        );
+
+        if (damagedItems.length > 0) {
+          const chargePerItem = (Number(inspection.totalCharges) || 0) / damagedItems.length;
+          items = damagedItems.map(item => {
+            const quantity = Number(item.quantity) || 1;
+            const costPerUnit = Number(item.costPerUnit) || chargePerItem;
+            const amount = costPerUnit * quantity;
+
+            inspectionCharges += amount;
+
+            return {
               itemName: item.item,
-              quantity: item.quantity || 1,
+              quantity,
               status: item.status,
-              costPerUnit: item.costPerUnit || chargePerItem,
-              amount: item.costPerUnit ? (item.costPerUnit * (item.quantity || 1)) : chargePerItem
-            }));
-          }
+              costPerUnit,
+              amount
+            };
+          });
         }
-        
-        // If no damaged items but charges exist, create sample damaged items
-        if (items.length === 0 && inspection.totalCharges > 0) {
-          const sampleDamagedItems = [
-            { item: 'Towel', quantity: 1, status: 'missing' },
-            { item: 'Bedsheet', quantity: 1, status: 'damaged' }
-          ];
-          const chargePerItem = inspection.totalCharges / sampleDamagedItems.length;
-          items = sampleDamagedItems.map(item => ({
+      }
+
+      // If no damaged items but charges exist, create sample items
+      if (items.length === 0 && Number(inspection.totalCharges) > 0) {
+        const sampleDamagedItems = [
+          { item: 'Towel', quantity: 1, status: 'missing' },
+          { item: 'Bedsheet', quantity: 1, status: 'damaged' }
+        ];
+        const chargePerItem = (Number(inspection.totalCharges) || 0) / sampleDamagedItems.length;
+        items = sampleDamagedItems.map(item => {
+          const amount = chargePerItem;
+          inspectionCharges += amount;
+
+          return {
             itemName: item.item,
-            quantity: item.quantity,
+            quantity: Number(item.quantity) || 1,
             status: item.status,
             costPerUnit: chargePerItem,
-            amount: chargePerItem
-          }));
-        }
-        
-        // Convert items to invoice format
-        const invoiceItems = items.map(item => ({
-          description: `${item.itemName} (${item.status})`,
-          amount: item.amount,
-          _id: new mongoose.Types.ObjectId()
-        }));
-        
-        return {
-          inspectionId: inspection._id,
-          charges: inspection.totalCharges || 0,
-          inspectionDate: inspection.createdAt,
-          remarks: inspection.remarks,
-          items: invoiceItems
-        };
-      })
-    };
+            amount
+          };
+        });
+      }
+
+      // Convert items to invoice format
+      const invoiceItems = items.map(item => ({
+        description: `${item.itemName} (${item.status})`,
+        amount: Number(item.amount) || 0,
+        _id: new mongoose.Types.ObjectId()
+      }));
+
+      return {
+        inspectionId: inspection._id,
+        charges: Number(inspection.totalCharges) || 0,
+        inspectionDate: inspection.createdAt,
+        remarks: inspection.remarks,
+        items: invoiceItems
+      };
+    });
+
+    // Room booking charges
+    const bookingCharges = Number(booking.rate) || 0;
 
     const totalAmount = restaurantCharges + laundryCharges + inspectionCharges + bookingCharges;
-    
+
     const checkout = await Checkout.create({
       bookingId,
       restaurantCharges,
@@ -122,7 +156,11 @@ exports.createCheckout = async (req, res) => {
       inspectionCharges,
       bookingCharges,
       totalAmount,
-      serviceItems,
+      serviceItems: {
+        restaurant: restaurantItems,
+        laundry: laundryItems,
+        inspection: inspectionItems
+      },
       pendingAmount: totalAmount
     });
 
@@ -132,6 +170,7 @@ exports.createCheckout = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
 
 // Get checkout by booking ID
 exports.getCheckout = async (req, res) => {

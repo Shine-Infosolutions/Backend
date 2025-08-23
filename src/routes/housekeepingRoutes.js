@@ -9,7 +9,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 // Create a new housekeeping task (admin or staff from reception/housekeeping)
 router.post(
   '/tasks',
-  authMiddleware(['admin', 'staff'], ['reception', 'housekeeping']),
+  
   housekeepingController.createTask
 );
 

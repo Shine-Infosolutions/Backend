@@ -28,12 +28,13 @@ const RestaurantOrderSchema = new mongoose.Schema({
       ref: 'Item',
       required: true
     },
-    quantity: { type: Number, required: true }
+    quantity: { type: Number, required: true },
+    price: { type: Number, required: true }
   }],
   notes: String,
   status: {
     type: String,
-    enum: ['resrved','running', 'served' ],
+    enum: ['reserved','running', 'served' ],
   },
   amount: {
     type: Number,

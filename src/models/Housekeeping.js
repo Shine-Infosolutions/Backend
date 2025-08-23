@@ -6,6 +6,11 @@ const housekeepingSchema = new mongoose.Schema({
     ref: 'Room',
     required: true
   },
+  bookingId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Booking',
+    required: true
+  },
   status: {
     type: String,
     enum: ['pending', 'in-progress', 'cleaning', 'completed', 'verified'],

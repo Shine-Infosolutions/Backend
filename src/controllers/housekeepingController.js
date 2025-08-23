@@ -286,16 +286,20 @@ const generateInvoiceNumber = async () => {
 // Create a new housekeeping task
 exports.createTask = async (req, res) => {
   try {
-    const { roomId, cleaningType, notes, priority, assignedTo } = req.body;
+    const { roomId, bookingId, cleaningType, notes, priority, assignedTo } = req.body;
     
     // Verify room exists
     const room = await Room.findById(roomId);
     if (!room) {
       return res.status(404).json({ error: 'Room not found' });
     }
-    
+    // Validate bookingId
+if (!bookingId) {
+  return res.status(400).json({ error: 'bookingId is required' });
+}
     const task = new Housekeeping({
       roomId,
+      bookingId,
       cleaningType,
       notes,
       priority,
@@ -320,7 +324,8 @@ exports.getAllTasks = async (req, res) => {
     if (status) filter.status = status;
     if (priority) filter.priority = priority;
     if (cleaningType) filter.cleaningType = cleaningType;
-    
+    if (req.query.bookingId) filter.bookingId = req.query.bookingId;
+
     const tasks = await Housekeeping.find(filter)
       .populate('roomId')
       .populate('assignedTo', 'username')
@@ -341,6 +346,7 @@ exports.getTaskById = async (req, res) => {
     const task = await Housekeeping.findById(taskId)
       .populate('roomId')
       .populate('assignedTo', 'username')
+      .populate('bookingId')
       .populate('verifiedBy', 'username');
     
     if (!task) {
@@ -357,9 +363,12 @@ exports.getTaskById = async (req, res) => {
 exports.getStaffTasks = async (req, res) => {
   try {
     const { staffId } = req.params;
-    const tasks = await Housekeeping.find({ assignedTo: staffId })
-      .populate('roomId')
-      .sort({ priority: 1, createdAt: -1 });
+    const { bookingId } = req.query;
+    const filter = { assignedTo: staffId };
+    if (bookingId) filter.bookingId = bookingId;
+    const tasks = await Housekeeping.find(filter)
+  .populate('roomId')
+  .sort({ priority: 1, createdAt: -1 });
     
     res.json({ success: true, tasks });
   } catch (error) {
