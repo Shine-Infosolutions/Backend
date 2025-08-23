@@ -29,6 +29,7 @@ const paginationRoutes = require('./src/routes/paginationRoutes');
 const notificationRoutes = require('./src/routes/notificationRoutes');
 const invoiceRoutes = require('./src/routes/invoiceRoutes.js');
 const roomInventoryRoutes = require('./src/routes/roomInventoryRoutes.js');
+const checkoutRoutes = require('./src/routes/checkoutRoutes.js');
 
 const paymentRoutes = require('./src/routes/paymentRoutes.js');
 const restaurantReservationRoutes = require('./src/routes/restaurantReservationRoutes');
@@ -107,6 +108,7 @@ app.use('/api/paginate', paginationRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/room-inventory', roomInventoryRoutes);
+app.use('/api/checkout', checkoutRoutes);
 app.use('/api/restaurant-reservations', restaurantReservationRoutes);
 
 app.use('/api/payments', paymentRoutes);
