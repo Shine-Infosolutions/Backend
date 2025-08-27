@@ -69,4 +69,4 @@ const cabBookingSchema = new mongoose.Schema({
   timestamps: true  
 });
 
-module.exports = mongoose.model('CabBooking', cabBookingSchema);
+module.exports = mongoose.models.CabBooking || mongoose.model("CabBooking", cabBookingSchema);

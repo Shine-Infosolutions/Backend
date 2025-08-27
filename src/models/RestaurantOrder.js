@@ -5,6 +5,15 @@ const RestaurantOrderSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+   // For in-house (hotel guest) orders
+   bookingId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Booking'
+  },
+  grcNo: String,
+  roomNumber: String,
+  guestName: String,
+  guestPhone: String,
   phoneNumber: {
     type: String,
     required: true
@@ -19,13 +28,13 @@ const RestaurantOrderSchema = new mongoose.Schema({
       ref: 'Item',
       required: true
     },
-    quantity: { type: Number, required: true }
+    quantity: { type: Number, required: true },
+    price: { type: Number, required: true }
   }],
   notes: String,
   status: {
     type: String,
-    enum: ['pending', 'preparing', 'ready', 'served', 'completed', 'cancelled'],
-    default: 'pending'
+    enum: ['reserved','running', 'served' ],
   },
   amount: {
     type: Number,

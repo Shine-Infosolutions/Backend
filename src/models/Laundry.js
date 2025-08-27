@@ -4,14 +4,12 @@ const mongoose = require("mongoose");
 const laundrySchema = new mongoose.Schema({
   grcNo: String,
   roomNumber: String,
-  bookingId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Booking',
-    required: true // ✅ Always required since only guest laundry will exist
-  },
 
   requestedByName: String, // Guest name
-
+  bookingId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Booking',  
+  },
   items: [
     {
       rateId: { type: mongoose.Schema.Types.ObjectId, ref: "LaundryRate", required: true },
