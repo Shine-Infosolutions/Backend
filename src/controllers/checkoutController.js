@@ -214,3 +214,94 @@ exports.updatePaymentStatus = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
+// Get invoice by checkout ID
+exports.getInvoice = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const checkout = await Checkout.findById(id)
+      .populate('bookingId', 'grcNo name roomNumber checkInDate checkOutDate');
+    
+    if (!checkout) {
+      return res.status(404).json({ message: 'Checkout not found' });
+    }
+
+    const invoice = {
+      invoiceNumber: `CHK-${checkout._id.toString().slice(-6)}`,
+      issueDate: checkout.createdAt,
+      guest: {
+        name: checkout.bookingId?.name || 'N/A',
+        grcNo: checkout.bookingId?.grcNo || 'N/A',
+        roomNumber: checkout.bookingId?.roomNumber || 'N/A',
+        checkInDate: checkout.bookingId?.checkInDate,
+        checkOutDate: checkout.bookingId?.checkOutDate
+      },
+      items: [],
+      subtotal: checkout.totalAmount,
+      totalAmount: checkout.totalAmount,
+      pendingAmount: checkout.pendingAmount,
+      paymentStatus: checkout.status
+    };
+
+    // Add booking charges
+    if (checkout.bookingCharges > 0) {
+      invoice.items.push({
+        description: 'Room Booking',
+        quantity: 1,
+        rate: checkout.bookingCharges,
+        amount: checkout.bookingCharges
+      });
+    }
+
+    // Add inspection items
+    checkout.serviceItems?.inspection?.forEach(inspection => {
+      if (inspection.items?.length > 0) {
+        inspection.items.forEach(item => {
+          invoice.items.push({
+            description: item.description,
+            quantity: 1,
+            rate: item.amount,
+            amount: item.amount
+          });
+        });
+      } else if (inspection.charges > 0) {
+        invoice.items.push({
+          description: 'Room Inspection',
+          quantity: 1,
+          rate: inspection.charges,
+          amount: inspection.charges
+        });
+      }
+    });
+
+    // Add restaurant items
+    checkout.serviceItems?.restaurant?.forEach(order => {
+      order.items?.forEach(item => {
+        invoice.items.push({
+          description: item.itemName,
+          quantity: item.quantity,
+          rate: item.rate,
+          amount: item.amount
+        });
+      });
+    });
+
+    // Add laundry items
+    checkout.serviceItems?.laundry?.forEach(service => {
+      service.items?.forEach(item => {
+        invoice.items.push({
+          description: item.itemName,
+          quantity: item.quantity,
+          rate: item.rate,
+          amount: item.amount
+        });
+      });
+    });
+
+    res.status(200).json({ success: true, invoice });
+  } catch (error) {
+    console.error('GetInvoice Error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
