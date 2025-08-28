@@ -215,6 +215,11 @@ exports.updateUser = async (req, res) => {
       return res.status(400).json({ message: 'Invalid role' });
     }
 
+    // Hash password if provided
+    if (updates.password && updates.password.trim() !== '') {
+      updates.password = await bcrypt.hash(updates.password, 10);
+    }
+
     // If updating department, ensure it's an array of objects for staff
     if (updates.department && Array.isArray(updates.department)) {
       updates.department = updates.department.map(dep => ({
