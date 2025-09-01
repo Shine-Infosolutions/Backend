@@ -33,6 +33,10 @@ const checkoutRoutes = require('./src/routes/checkoutRoutes.js');
 
 const paymentRoutes = require('./src/routes/paymentRoutes.js');
 const restaurantReservationRoutes = require('./src/routes/restaurantReservationRoutes');
+const banquetMenuRoutes = require('./src/routes/banquetMenuRoutes.js');
+const banquetBookingRoutes = require('./src/routes/banquetBookingRoutes.js');
+const planLimitRoutes = require('./src/routes/planLimitRoutes.js');
+const menuRoutes = require('./src/routes/menuRoutes.js');
 const path = require('path');
 // Initialize express app
 const app = express();
@@ -112,6 +116,11 @@ app.use('/api/checkout', checkoutRoutes);
 app.use('/api/restaurant-reservations', restaurantReservationRoutes);
 
 app.use('/api/payments', paymentRoutes);
+app.use('/api/banquet-menus', banquetMenuRoutes);
+app.use('/api/banquet-bookings', banquetBookingRoutes);
+app.use('/api/plan-limits', planLimitRoutes);
+app.use('/api/menus', menuRoutes);
+
 
 // Health check endpoint
 app.get('/health', (req, res) => {
